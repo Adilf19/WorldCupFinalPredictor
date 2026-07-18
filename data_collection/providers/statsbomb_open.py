@@ -68,11 +68,13 @@ class StatsBombOpenDataProvider(DataProvider):
         season_id: int = 106,
         team_names: tuple[str, ...] = ("Spain", "Argentina"),
         request_concurrency: int = 4,
+        include_event_data: bool = True,
     ) -> None:
         self.competition_id = competition_id
         self.season_id = season_id
         self.team_names = frozenset(team_names)
         self.request_concurrency = request_concurrency
+        self.include_event_data = include_event_data
         self._snapshot: ProviderSnapshot | None = None
 
     @property
@@ -118,6 +120,8 @@ class StatsBombOpenDataProvider(DataProvider):
         semaphore = asyncio.Semaphore(self.request_concurrency)
 
         async def match_payload(match: dict[str, Any]) -> tuple[dict[str, Any], Any, Any]:
+            if not self.include_event_data:
+                return match, [], []
             async with semaphore:
                 lineups, events = await asyncio.gather(
                     self._json(f"lineups/{match['match_id']}.json"),

@@ -19,6 +19,9 @@ from database.models import (
     PlayerMatchStat,
     PlayerProviderReference,
     Prediction,
+    OwnerLoginChallenge,
+    OwnerSession,
+    SelectedFixture,
     SimulationResult,
     SpatialEvent,
     Team,
@@ -81,6 +84,18 @@ class PredictionRepository(Repository[Prediction]):
 
 class SimulationResultRepository(Repository[SimulationResult]):
     model = SimulationResult
+
+
+class OwnerLoginChallengeRepository(Repository[OwnerLoginChallenge]):
+    model = OwnerLoginChallenge
+
+
+class OwnerSessionRepository(Repository[OwnerSession]):
+    model = OwnerSession
+
+
+class SelectedFixtureRepository(Repository[SelectedFixture]):
+    model = SelectedFixture
 
 
 class CompetitionProviderReferenceRepository(

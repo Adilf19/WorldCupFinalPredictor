@@ -363,6 +363,63 @@ class SimulationResult(Base):
     prediction: Mapped[Prediction | None] = relationship(back_populates="simulation_results")
 
 
+class OwnerLoginChallenge(Base):
+    """Hashed, expiring one-time code for the allowlisted owner email."""
+
+    __tablename__ = "owner_login_challenges"
+    __table_args__ = (Index("idx_owner_challenge_email_created", "email", "created_at"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(String(320))
+    code_hash: Mapped[str] = mapped_column(String(64))
+    salt: Mapped[str] = mapped_column(String(64))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    attempts: Mapped[int] = mapped_column(Integer, server_default="0")
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    request_ip: Mapped[str | None] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.current_timestamp())
+
+
+class OwnerSession(Base):
+    """Revocable hash of an opaque owner-session cookie."""
+
+    __tablename__ = "owner_sessions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    email: Mapped[str] = mapped_column(String(320))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.current_timestamp())
+
+
+class SelectedFixture(Base):
+    """Owner-selected fixture currently presented by the public dashboard."""
+
+    __tablename__ = "selected_fixtures"
+    __table_args__ = (
+        Index("idx_selected_fixture_active", "is_active"),
+        UniqueConstraint("provider", "external_id", name="uq_selected_fixture_provider_external"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    provider: Mapped[str] = mapped_column(String(50))
+    external_id: Mapped[str] = mapped_column(String(255))
+    home_name: Mapped[str] = mapped_column(String(100))
+    away_name: Mapped[str] = mapped_column(String(100))
+    kickoff_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(String(30), server_default="scheduled")
+    home_team_id: Mapped[int | None] = mapped_column(ForeignKey("teams.id"))
+    away_team_id: Mapped[int | None] = mapped_column(ForeignKey("teams.id"))
+    match_id: Mapped[int | None] = mapped_column(ForeignKey("matches.id"))
+    is_active: Mapped[bool] = mapped_column(Boolean, server_default="true")
+    created_by: Mapped[str] = mapped_column(String(320))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.current_timestamp())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.current_timestamp(), onupdate=func.current_timestamp()
+    )
+
+
 class CompetitionProviderReference(Base):
     """Map a provider competition ID to its canonical competition."""
 

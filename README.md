@@ -7,7 +7,8 @@ built to score *any* club or international fixture without redesign.
 > **Status:** PostgreSQL schema, SQLAlchemy ORM, CRUD repositories, migrations,
 > the Spain/Argentina seed, provider contracts, JSON adapter, and transactional
 > provider-to-ORM normalization, team features, predicted lineups, and spatial
-> player matchups are implemented. Training and simulation remain on the roadmap.
+> player matchups, a trained LightGBM goal baseline, and Monte Carlo scoreline
+> simulation are implemented. API and frontend delivery remain on the roadmap.
 
 ---
 
@@ -170,28 +171,37 @@ individual on-pitch battle (RW↔LB, ST↔CB, CAM↔DM, GK↔ST, etc.):
    an explicit fallback rather than fabricating spatial evidence.
 
 ### 5. Prediction Model
-No single "predict the winner" black box. The model (LightGBM/XGBoost
-by default) predicts intermediate quantities — expected goals, expected
-possession, expected shots, expected pass accuracy — from the team,
-player, matchup, and tactical features. The pipeline is model-agnostic:
-neural nets, GNNs, or transformer-based sequence models can be dropped
-in later behind the same `predict.py` interface.
+The implemented baseline trains two Poisson-objective LightGBM models for home
+and away goal rates. Training rows are built with strict pre-match cutoffs and
+split chronologically for evaluation before final models are retrained on all
+eligible data. Artifacts include both boosters, feature ordering, validation
+metrics, gain importance, training dates, and data limitations. The current
+baseline uses rolling match-result features; matchup features remain separate
+until historical lineup/spatial coverage is dense enough to train them without
+systematic missingness.
 
 ### 6. Monte Carlo Simulation
-Takes the model's expected-value outputs and runs 100,000+ simulations
-to produce a full scoreline distribution, not just a point estimate:
-win/draw/loss probabilities, most likely scorelines, expected scorers,
-and confidence intervals.
+Takes learned home/away goal rates and runs seeded independent-Poisson
+simulations. It returns win/draw/loss probabilities, all observed scoreline
+buckets, likely scorelines, simulated mean goals, and 90% goal intervals. The
+combined pipeline can idempotently persist a versioned prediction and replace
+its scoreline buckets in PostgreSQL.
 
 ### 7. API
-FastAPI service exposing predictions, matchup breakdowns, and
-explanations for any two teams/players the pipeline has data for —
-built to serve both the platform's own frontend and third-party
-developers later.
+The implemented FastAPI service exposes the active fixture, prediction inputs
+and outputs, heatmap/H2H/similarity matchups, expected/confirmed lineup state,
+and live-provider state. Owner-only endpoints use expiring email verification
+and an HttpOnly session cookie to select the dashboard fixture.
 
 ### 8. Frontend
-Placeholder for now — see [Extensibility](#extensibility--future-scope).
-Will consume the API only; no direct database or model access.
+The implemented React/TypeScript dashboard consumes only FastAPI. Its compact
+match-centre shows the countdown, rounded 90-minute score projection, expected
+goals, knockout qualification/extra-time/penalty probabilities, and live ticker
+together. Lineups come next, followed by visual player advantage shares,
+heatmaps, scoped H2H evidence, collapsible model inputs, methodology, and a
+responsive owner panel.
+See [how the app works](docs/how_the_app_works.md) for runtime and security
+details.
 
 ---
 
@@ -319,6 +329,18 @@ python -m scripts.predict_matchups \
   --as-of 2026-07-19
 ```
 
+Ingest match-only World Cup history, train the baseline, then simulate the final:
+
+```bash
+python -m scripts.ingest_statsbomb_world_cup_history
+python -m scripts.train_lightgbm_baseline
+python -m scripts.predict_and_simulate --simulations 100000
+```
+
+The checked-in `lightgbm_poisson_v1` metadata records 114 eligible rows and a
+23-match chronological holdout with combined goal MAE of approximately 0.927.
+This is a reproducible baseline metric, not a production accuracy claim.
+
 ---
 
 ## Roadmap
@@ -335,7 +357,7 @@ python -m scripts.predict_matchups \
 10. ✅ Build player similarity engine.
 11. ✅ Build baseline positional matchup predictor.
 12. ✅ Build action-heatmap matchup predictor and open-data ingestion.
-13. Train baseline LightGBM model.
-14. Add Monte Carlo simulation.
-15. Build FastAPI endpoints.
-16. Build React frontend.
+13. ✅ Train baseline LightGBM model.
+14. ✅ Add Monte Carlo simulation.
+15. ✅ Build FastAPI endpoints.
+16. ✅ Build React frontend framework.

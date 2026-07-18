@@ -148,10 +148,10 @@ class TeamFeaturePipeline:
             matches_considered=len(rows),
             effective_sample_size=effective_matches,
             total_weight=sum(weights),
-            win_rate=self._average(rows, "won"),
-            draw_rate=self._average(rows, "drawn"),
-            loss_rate=self._average(rows, "lost"),
-            points_per_match=self._average(rows, "points"),
+            win_rate=self._bounded_average(rows, "won", maximum=1.0),
+            draw_rate=self._bounded_average(rows, "drawn", maximum=1.0),
+            loss_rate=self._bounded_average(rows, "lost", maximum=1.0),
+            points_per_match=self._bounded_average(rows, "points", maximum=3.0),
             goals_for=goals_for,
             goals_against=goals_against,
             goal_difference=self._difference(goals_for, goals_against),
@@ -162,8 +162,8 @@ class TeamFeaturePipeline:
             shots_for=self._average(rows, "shots_for"),
             shots_against=self._average(rows, "shots_against"),
             pass_accuracy=self._average(rows, "pass_accuracy"),
-            clean_sheet_rate=self._average(rows, "clean_sheet"),
-            scoring_rate=self._average(rows, "scored"),
+            clean_sheet_rate=self._bounded_average(rows, "clean_sheet", maximum=1.0),
+            scoring_rate=self._bounded_average(rows, "scored", maximum=1.0),
             home_match_share=weighted_average(
                 (float(row.is_home), row.weight) for row in rows
             ),
@@ -185,6 +185,13 @@ class TeamFeaturePipeline:
         return weighted_average(
             (getattr(row, field), row.weight) for row in rows
         )
+
+    @staticmethod
+    def _bounded_average(
+        rows: list[TeamMatchPerspective], field: str, *, maximum: float
+    ) -> float | None:
+        value = TeamFeaturePipeline._average(rows, field)
+        return min(maximum, max(0.0, value)) if value is not None else None
 
     def _statistics_coverage(self, rows: list[TeamMatchPerspective]) -> float:
         if not rows:
