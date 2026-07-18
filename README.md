@@ -128,19 +128,18 @@ exports, fixtures, and deterministic integration testing.
 Relational PostgreSQL schema (`schema.sql`) mapped by fully typed SQLAlchemy
 2.0 models. Transaction-neutral CRUD repositories flush without committing,
 so services can write a match, lineups, and statistics atomically. Provider
-provenance identifiers will be added in a controlled schema migration before
-the first provider integration.
+reference tables preserve external identities without adding vendor-specific
+columns to canonical football entities.
 
 ### 3. Feature Engineering
-Turns raw match/player rows into model-ready features:
-- Team-level: recent form, home/away/neutral form, goals/xG/possession
-  trends, Elo, FIFA ranking, squad stability, lineup consistency,
-  average age/market value, team-chemistry estimate.
-- Player-level: separate rolling stats for club / international / World
-  Cup contexts.
-- Recency weighting: exponential decay, with competition-tier
-  multipliers (configurable, not hardcoded) so a World Cup match counts
-  more than a friendly from the same week.
+The implemented team pipeline turns completed canonical matches into versioned,
+model-ready feature vectors. It normalizes home/away columns into each team's
+perspective and calculates form, points, goals, xG, possession, shots, passing,
+clean sheets, scoring frequency, venue mix, Elo/FIFA context, data coverage,
+and effective sample size. Configurable exponential recency decay is multiplied
+by competition tier, so importance and freshness remain explicit. Queries use
+an exclusive cutoff date to prevent target-match leakage. Player-level rolling
+features, squad stability, and chemistry remain future pipeline stages.
 
 ### 4. Matchup Engine — the differentiator
 Instead of modeling only "Spain vs Argentina," this models every
@@ -281,6 +280,18 @@ python -m scripts.ingest_provider_json \
 Provider I/O finishes before ORM writes begin. Re-running the same provider IDs
 updates revised match data instead of duplicating canonical records.
 
+Build the Spain–Argentina team comparison with:
+
+```bash
+python -m scripts.build_team_features \
+  --home Spain \
+  --away Argentina \
+  --as-of 2026-07-19
+```
+
+Missing historical statistics remain `null` and reduce the reported coverage;
+the pipeline never replaces absent provider data with invented zeroes.
+
 ---
 
 ## Roadmap
@@ -291,7 +302,7 @@ updates revised match data instead of duplicating canonical records.
 4. ✅ Create provider abstraction.
 5. ✅ Implement first provider (validated JSON adapter).
 6. ✅ Normalize provider data into ORM models.
-7. Create feature engineering pipeline.
+7. ✅ Create team feature engineering pipeline.
 8. Build lineup predictor.
 9. Build H2H (head to head matchup) engine.
 10. Build player similarity engine.
