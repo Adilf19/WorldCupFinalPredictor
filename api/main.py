@@ -65,7 +65,7 @@ def login(
         token,
         httponly=True,
         secure=settings.cookie_secure,
-        samesite="strict",
+        samesite="none" if settings.cookie_secure else "strict",
         max_age=12 * 60 * 60,
         path="/",
     )

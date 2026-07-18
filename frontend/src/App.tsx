@@ -10,9 +10,10 @@ type Matchups = { average_confidence:number; evidence_coverage:number; overall_h
 type Lineups = { mode:string; provider_status:string; home:Player[]; away:Player[] }
 type Live = { status:string; minute:number|null; home_score:number|null; away_score:number|null; events:{minute:number; type:string; player?:string; team?:string}[] }
 
+const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
 const api = async <T,>(path:string, options?:RequestInit):Promise<T> => {
-  const response = await fetch(path, { credentials:'include', headers:{'Content-Type':'application/json'}, ...options })
-  if (!response.ok) { const body = await response.json().catch(()=>({detail:'Request failed'})); throw new Error(body.detail || 'Request failed') }
+  const response = await fetch(`${API_BASE_URL}${path}`, { credentials:'include', headers:{'Content-Type':'application/json'}, ...options })
+  if (!response.ok) { const body = await response.json().catch(()=>({detail:''})); throw new Error(body.detail || (response.status===404&&!API_BASE_URL?'Backend URL is not configured in Vercel. Add VITE_API_URL and redeploy.':'Request failed')) }
   return response.json()
 }
 

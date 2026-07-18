@@ -66,6 +66,12 @@ uvicorn api.main:app --reload
 Open `http://127.0.0.1:8000`. For frontend hot reload, run `npm run dev` from
 `frontend/`; Vite proxies `/api` to FastAPI.
 
+When Vercel hosts the frontend separately, set `VITE_API_URL` to the public
+FastAPI origin, for example `https://your-service.onrender.com`. On the backend,
+set `API_ALLOWED_ORIGINS` to the exact Vercel/custom-domain origin and set
+`COOKIE_SECURE=true`; this allows the HttpOnly owner session to work across the
+two HTTPS origins without exposing it to JavaScript.
+
 Required owner-password environment values are documented in `.env.example`.
 
 ## Google Stitch
