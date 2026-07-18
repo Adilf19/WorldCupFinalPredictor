@@ -44,13 +44,15 @@ class SpatialMatchupPredictor:
             raise ValueError("Lineup cutoff dates must match")
         home_profiles = self._profiles(home_lineup)
         away_profiles = self._profiles(away_lineup)
-        home_coverage = len(home_profiles) / max(1, len(home_lineup.players))
-        away_coverage = len(away_profiles) / max(1, len(away_lineup.players))
+        home_outfield = tuple(player for player in home_lineup.players if player.assigned_role != "GK")
+        away_outfield = tuple(player for player in away_lineup.players if player.assigned_role != "GK")
+        home_coverage = len(home_profiles) / max(1, len(home_outfield))
+        away_coverage = len(away_profiles) / max(1, len(away_outfield))
         if min(home_coverage, away_coverage) < self.config.spatial_minimum_lineup_coverage:
             return None
 
         battles: list[BattlePrediction] = []
-        for home_player in home_lineup.players:
+        for home_player in home_outfield:
             home_profile = home_profiles.get(home_player.player_id)
             if home_profile is None or not away_profiles:
                 continue
@@ -60,7 +62,7 @@ class SpatialMatchupPredictor:
                     away_player,
                     profile,
                 )
-                for away_player in away_lineup.players
+                for away_player in away_outfield
                 if (profile := away_profiles.get(away_player.player_id)) is not None
             ]
             overlap, away_player, away_profile = max(candidates, key=lambda item: item[0])
@@ -129,7 +131,7 @@ class SpatialMatchupPredictor:
             for battle in battles
             if battle.away_player is not None
         }
-        for away_player in away_lineup.players:
+        for away_player in away_outfield:
             away_profile = away_profiles.get(away_player.player_id)
             if away_profile is None or away_player.player_id in covered_away_ids or not home_profiles:
                 continue
@@ -139,7 +141,7 @@ class SpatialMatchupPredictor:
                     home_player,
                     profile,
                 )
-                for home_player in home_lineup.players
+                for home_player in home_outfield
                 if (profile := home_profiles.get(home_player.player_id)) is not None
             ]
             overlap, home_player, home_profile = max(candidates, key=lambda item: item[0])
@@ -232,6 +234,7 @@ class SpatialMatchupPredictor:
         return {
             player.player_id: profile
             for player in lineup.players
+            if player.assigned_role != "GK"
             if (profile := self._profile(player, lineup.team_id, lineup.as_of)) is not None
         }
 

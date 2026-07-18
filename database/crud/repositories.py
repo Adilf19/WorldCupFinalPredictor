@@ -15,6 +15,7 @@ from database.models import (
     MatchProviderReference,
     MatchupEvent,
     Player,
+    PlayerAvailability,
     PlayerEmbedding,
     PlayerMatchStat,
     PlayerProviderReference,
@@ -40,6 +41,10 @@ class TeamRepository(Repository[Team]):
 
 class PlayerRepository(Repository[Player]):
     model = Player
+
+
+class PlayerAvailabilityRepository(Repository[PlayerAvailability]):
+    model = PlayerAvailability
 
 
 class TeamPlayerRepository(Repository[TeamPlayer]):

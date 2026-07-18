@@ -27,6 +27,8 @@ class PlayerEvidence:
     evidence_score: float = 0.0
     context_form: PlayerContextForm | None = None
     shirt_numbers: dict[int, float] = field(default_factory=lambda: defaultdict(float))
+    availability_status: str = "unknown"
+    availability_reason: str | None = None
 
 
 class LineupPredictor:
@@ -63,6 +65,25 @@ class LineupPredictor:
                 "compatibility only."
             )
         evidence = self._evidence(squad=squad, lineups=lineups, as_of=as_of)
+        availability = self.history.latest_availability(
+            team_id=team_id, player_ids=list(evidence), as_of=as_of
+        )
+        for player_id, report in availability.items():
+            item = evidence[player_id]
+            item.availability_status = (
+                "unknown"
+                if report.expected_return is not None and report.expected_return <= as_of
+                else report.status
+            )
+            item.availability_reason = report.reason
+        unavailable = [
+            item.player.name for item in evidence.values()
+            if item.availability_status in {"out", "suspended"}
+        ]
+        if unavailable:
+            warnings.append(
+                f"Excluded {len(unavailable)} unavailable player(s) using the latest pre-match reports."
+            )
         for item in evidence.values():
             item.context_form = self.player_form.build(
                 player_id=item.player.id, target_team_type=team.team_type, as_of=as_of
@@ -142,8 +163,12 @@ class LineupPredictor:
         # internal comparison roles. This prevents a rigid 4-3-3 template from
         # dropping a frequently selected midfielder merely because another
         # player has a more specific provider position label.
-        goalkeepers = [item for item in evidence.values() if item.player.primary_position == "GK"]
-        outfield = [item for item in evidence.values() if item.player.primary_position != "GK"]
+        eligible = [
+            item for item in evidence.values()
+            if item.availability_status not in {"out", "suspended"}
+        ]
+        goalkeepers = [item for item in eligible if item.player.primary_position == "GK"]
+        outfield = [item for item in eligible if item.player.primary_position != "GK"]
         selected_pool = sorted(goalkeepers, key=self._selection_priority, reverse=True)[:1]
         selected_pool.extend(sorted(outfield, key=self._selection_priority, reverse=True)[:10])
         available = {item.player.id: item for item in selected_pool}
@@ -183,6 +208,8 @@ class LineupPredictor:
                     country_form=chosen.context_form.country_form if chosen.context_form else None,
                     blended_form=chosen.context_form.blended_form if chosen.context_form else None,
                     form_coverage=chosen.context_form.coverage if chosen.context_form else 0,
+                    availability_status=chosen.availability_status,
+                    availability_reason=chosen.availability_reason,
                 )
             )
             del available[chosen.player.id]
@@ -210,6 +237,8 @@ class LineupPredictor:
                     country_form=chosen.context_form.country_form if chosen.context_form else None,
                     blended_form=chosen.context_form.blended_form if chosen.context_form else None,
                     form_coverage=chosen.context_form.coverage if chosen.context_form else 0,
+                    availability_status=chosen.availability_status,
+                    availability_reason=chosen.availability_reason,
                 )
             )
         return selected
@@ -218,6 +247,8 @@ class LineupPredictor:
     def _selection_priority(evidence: PlayerEvidence) -> tuple[float, float, float, int]:
         form = evidence.context_form.blended_form if evidence.context_form else None
         score = evidence.evidence_score if form is None else 0.75 * evidence.evidence_score + 0.25 * form
+        if evidence.availability_status == "doubtful":
+            score *= 0.6
         return score, evidence.starts, evidence.minutes, -evidence.player.id
 
     def _role_score(self, evidence: PlayerEvidence, role: str) -> float:

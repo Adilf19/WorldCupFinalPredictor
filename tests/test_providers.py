@@ -4,7 +4,7 @@ import asyncio
 import json
 import tempfile
 import unittest
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
@@ -79,6 +79,17 @@ def _snapshot_payload(suffix: str) -> dict[str, object]:
                 "away_goals": 0,
             }
         ],
+        "player_availability": [
+            {
+                "external_id": "availability-home-1",
+                "player_external_id": "player-home",
+                "team_external_id": "team-home",
+                "status": "doubtful",
+                "reason": "Late fitness test",
+                "reported_at": datetime.now(timezone.utc).isoformat(),
+                "confidence": 0.8,
+            }
+        ],
         "lineups": [
             {
                 "match_external_id": "match-1",
@@ -145,6 +156,7 @@ class ProviderContractTests(unittest.TestCase):
         self.assertEqual(len(snapshot.teams), 2)
         self.assertEqual(snapshot.matches[0].external_id, "match-1")
         self.assertEqual(snapshot.spatial_events[0].x, 0.25)
+        self.assertEqual(snapshot.player_availability[0].status, "doubtful")
 
 
 class ProviderNormalizationPostgresTests(unittest.TestCase):

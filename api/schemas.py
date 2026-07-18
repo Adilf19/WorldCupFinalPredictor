@@ -27,6 +27,12 @@ class FixtureCandidate(ApiSchema):
     competition_id: int | None = None
     competition_name: str | None = None
     competition_format: str = "league"
+    home_logo_url: str | None = None
+    away_logo_url: str | None = None
+    home_manager: str | None = None
+    away_manager: str | None = None
+    home_manager_photo_url: str | None = None
+    away_manager_photo_url: str | None = None
 
 
 class CompetitionCandidate(ApiSchema):
@@ -88,6 +94,11 @@ class LineupResponse(ApiSchema):
     provider_status: str
     home: list[dict[str, Any]]
     away: list[dict[str, Any]]
+    predicted_home: list[dict[str, Any]]
+    predicted_away: list[dict[str, Any]]
+    actual_home: list[dict[str, Any]]
+    actual_away: list[dict[str, Any]]
+    actual_status: str
 
 
 class LiveResponse(ApiSchema):

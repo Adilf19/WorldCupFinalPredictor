@@ -30,6 +30,8 @@ class PredictedLineupPlayer(PredictionContract):
     country_form: float | None = Field(default=None, ge=0, le=1)
     blended_form: float | None = Field(default=None, ge=0, le=1)
     form_coverage: float = Field(default=0, ge=0, le=1)
+    availability_status: str = "unknown"
+    availability_reason: str | None = None
 
 
 class PredictedLineup(PredictionContract):
@@ -97,6 +99,7 @@ class BattlePrediction(PredictionContract):
     away_heatmap: HeatmapGrid | None = None
     direct_h2h: MatchupEvidenceSummary | None = None
     similarity_evidence: MatchupEvidenceSummary | None = None
+    goalkeeper_evidence: dict[str, dict[str, float | int | None]] | None = None
 
 
 class MatchupPrediction(PredictionContract):

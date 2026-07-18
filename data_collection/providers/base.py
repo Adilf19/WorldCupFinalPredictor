@@ -9,6 +9,7 @@ from data_collection.contracts import (
     MatchRecord,
     MatchupEventRecord,
     PlayerMatchStatsRecord,
+    PlayerAvailabilityRecord,
     PlayerRecord,
     ProviderSnapshot,
     SpatialEventRecord,
@@ -60,6 +61,10 @@ class DataProvider(ABC):
         """Fetch player memberships when squad data is available."""
         return ()
 
+    async def fetch_player_availability(self) -> tuple[PlayerAvailabilityRecord, ...]:
+        """Fetch injuries, suspensions, and availability when licensed."""
+        return ()
+
     @abstractmethod
     async def fetch_lineups(self) -> tuple[LineupRecord, ...]:
         """Fetch lineup records."""
@@ -83,6 +88,7 @@ class DataProvider(ABC):
             teams=await self.fetch_teams(),
             players=await self.fetch_players(),
             team_memberships=await self.fetch_team_memberships(),
+            player_availability=await self.fetch_player_availability(),
             matches=await self.fetch_matches(),
             lineups=await self.fetch_lineups(),
             player_match_stats=await self.fetch_player_match_stats(),

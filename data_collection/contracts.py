@@ -1,6 +1,6 @@
 """Provider-neutral, validated records exchanged by collection adapters."""
 
-from datetime import date
+from datetime import date, datetime
 from collections import Counter
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -34,6 +34,7 @@ class TeamRecord(ProviderRecord):
     fifa_ranking: int | None = Field(default=None, ge=1)
     elo_rating: float | None = Field(default=None, ge=0)
     manager: str | None = Field(default=None, max_length=100)
+    logo_url: str | None = Field(default=None, max_length=500)
     playing_style: str | None = Field(default=None, max_length=50)
 
 
@@ -65,6 +66,19 @@ class TeamMembershipRecord(ProviderRecord):
     player_external_id: str = Field(min_length=1, max_length=255)
     start_date: date | None = None
     end_date: date | None = None
+
+
+class PlayerAvailabilityRecord(ProviderRecord):
+    """Timestamped injury, suspension, or selection-availability evidence."""
+
+    external_id: str = Field(min_length=1, max_length=255)
+    player_external_id: str = Field(min_length=1, max_length=255)
+    team_external_id: str = Field(min_length=1, max_length=255)
+    status: str = Field(pattern=r"^(available|doubtful|out|suspended|unknown)$")
+    reason: str | None = Field(default=None, max_length=255)
+    reported_at: datetime
+    expected_return: date | None = None
+    confidence: float = Field(default=1.0, ge=0, le=1)
 
 
 class MatchRecord(ProviderRecord):
@@ -174,6 +188,7 @@ class ProviderSnapshot(ProviderRecord):
     teams: tuple[TeamRecord, ...] = ()
     players: tuple[PlayerRecord, ...] = ()
     team_memberships: tuple[TeamMembershipRecord, ...] = ()
+    player_availability: tuple[PlayerAvailabilityRecord, ...] = ()
     matches: tuple[MatchRecord, ...] = ()
     lineups: tuple[LineupRecord, ...] = ()
     player_match_stats: tuple[PlayerMatchStatsRecord, ...] = ()

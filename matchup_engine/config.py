@@ -31,7 +31,9 @@ class PredictorConfig(BaseModel):
     spatial_recency_half_life_days: float = Field(default=730.0, gt=0)
     spatial_full_evidence_events: int = Field(default=80, ge=1)
     spatial_minimum_events: int = Field(default=8, ge=1)
-    spatial_minimum_lineup_coverage: float = Field(default=0.35, ge=0, le=1)
+    # Partial licensed feeds are still valuable: surface covered players and
+    # lower evidence coverage instead of discarding every available heatmap.
+    spatial_minimum_lineup_coverage: float = Field(default=0.20, ge=0, le=1)
     h2h_recency_half_life_days: float = Field(default=730.0, gt=0)
     h2h_full_evidence_matches: int = Field(default=4, ge=1)
     h2h_similarity_fallback_confidence: float = Field(default=0.5, ge=0, le=1)

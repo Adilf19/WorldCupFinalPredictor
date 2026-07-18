@@ -25,6 +25,14 @@ class ApiSettings:
     football_data_base_url: str = os.getenv(
         "FOOTBALL_DATA_BASE_URL", "https://api.football-data.org/v4"
     )
+    api_football_api_key: str | None = os.getenv("API_FOOTBALL_API_KEY")
+    api_football_base_url: str = os.getenv(
+        "API_FOOTBALL_BASE_URL", "https://v3.football.api-sports.io"
+    )
+    sportradar_api_key: str | None = os.getenv("SPORTRADAR_API_KEY")
+    sportradar_access_level: str = os.getenv("SPORTRADAR_ACCESS_LEVEL", "t")
+    sportradar_image_provider: str = os.getenv("SPORTRADAR_IMAGE_PROVIDER", "getty")
+    sportradar_image_league: str = os.getenv("SPORTRADAR_IMAGE_LEAGUE", "world-cup")
 
 
 settings = ApiSettings()

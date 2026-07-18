@@ -3,7 +3,7 @@
 from pathlib import Path
 from dataclasses import asdict
 
-from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
+from fastapi import Depends, FastAPI, HTTPException, Path as ApiPath, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
@@ -14,9 +14,11 @@ from api.dependencies import get_db
 from api.fixture_provider import CanonicalFixtureProvider, FootballDataFixtureProvider
 from api.schemas import OwnerLoginBody, SelectFixtureBody, SyncCompetitionBody
 from api.services import DashboardService, SelectedFixtureService
-from database.models import OwnerSession
+from database.models import OwnerSession, Team
+from data_collection.api_football import ApiFootballClient, ApiFootballSynchronizer
 from data_collection.normalization import ProviderNormalizer
 from data_collection.providers import FootballDataProvider
+from data_collection.sportradar_media import SportradarMediaClient, SportradarMediaSynchronizer
 import httpx
 
 app = FastAPI(title="Adil's Football Game Predictor API", version="1.1.0")
@@ -167,6 +169,65 @@ def select_fixture(
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(error)) from error
 
 
+@app.post("/api/admin/media/sportradar/sync")
+def sync_sportradar_media(
+    year: int = 2026,
+    owner: OwnerSession = Depends(require_owner),
+    session: Session = Depends(get_db),
+) -> dict:
+    try:
+        client = SportradarMediaClient(
+            api_key=settings.sportradar_api_key or "",
+            access_level=settings.sportradar_access_level,
+            provider=settings.sportradar_image_provider,
+            league=settings.sportradar_image_league,
+        )
+    except ValueError as error:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(error)) from error
+    return asdict(SportradarMediaSynchronizer(session, client).sync(year=year))
+
+
+@app.post("/api/admin/providers/api-football/sync")
+def sync_api_football(
+    owner: OwnerSession = Depends(require_owner),
+    session: Session = Depends(get_db),
+) -> dict:
+    """Sync media for the active teams and injuries for API-Football fixtures."""
+    fixture = SelectedFixtureService(session).active_model()
+    if fixture is None or fixture.home_team_id is None or fixture.away_team_id is None:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Select a fixture first")
+    try:
+        client = ApiFootballClient(
+            api_key=settings.api_football_api_key or "",
+            base_url=settings.api_football_base_url,
+        )
+    except ValueError as error:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(error)) from error
+    home = session.get(Team, fixture.home_team_id)
+    away = session.get(Team, fixture.away_team_id)
+    if home is None or away is None:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Fixture teams are not canonicalized")
+    synchronizer = ApiFootballSynchronizer(session, client)
+    media = synchronizer.sync_teams((home, away))
+    injuries = (
+        synchronizer.sync_fixture_injuries(
+            fixture_id=fixture.external_id, home_team=home, away_team=away
+        )
+        if fixture.provider == "api_football" else None
+    )
+    return {
+        "provider": "api_football",
+        "fixture_provider": fixture.provider,
+        "media": asdict(media),
+        "injuries": asdict(injuries) if injuries else None,
+        "note": (
+            "Injuries synchronized for this fixture."
+            if injuries else
+            "Media synchronized; injury lookup activates when the selected fixture comes from API-Football."
+        ),
+    }
+
+
 @app.get("/api/public/fixture")
 def active_fixture(session: Session = Depends(get_db)):
     return SelectedFixtureService(session).active()
@@ -190,6 +251,35 @@ def public_lineups(session: Session = Depends(get_db)):
 @app.get("/api/public/live")
 def public_live(session: Session = Depends(get_db)):
     return DashboardService(session).live()
+
+
+@app.get("/api/public/media/sportradar/{provider}/{league}/{asset_path:path}")
+async def sportradar_media(
+    provider: str = ApiPath(pattern=r"^[a-z_]+$"),
+    league: str = ApiPath(pattern=r"^[a-z0-9-]+$"),
+    asset_path: str = ApiPath(min_length=1, max_length=500),
+):
+    if not settings.sportradar_api_key:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Sportradar media is not configured")
+    if provider not in {"ap", settings.sportradar_image_provider} or league != settings.sportradar_image_league:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Unknown media collection")
+    if ".." in asset_path or "\\" in asset_path or not asset_path.startswith(("headshots/", "logos/")):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid media path")
+    url = (
+        f"https://api.sportradar.com/soccer-images-{settings.sportradar_access_level}3/"
+        f"{provider}/{league}/{asset_path}"
+    )
+    try:
+        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+            upstream = await client.get(url, headers={"Accept": "image/*", "x-api-key": settings.sportradar_api_key})
+            upstream.raise_for_status()
+    except httpx.HTTPError as error:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Licensed media provider request failed") from error
+    return Response(
+        content=upstream.content,
+        media_type=upstream.headers.get("content-type", "application/octet-stream"),
+        headers={"Cache-Control": "public, max-age=86400, stale-while-revalidate=604800"},
+    )
 
 
 frontend_directory = Path(__file__).resolve().parents[1] / "frontend" / "dist"

@@ -20,6 +20,7 @@ from database.crud import (
     MatchRepository,
     MatchupEventRepository,
     PlayerMatchStatRepository,
+    PlayerAvailabilityRepository,
     PlayerProviderReferenceRepository,
     PlayerRepository,
     SpatialEventRepository,
@@ -56,6 +57,7 @@ class ProviderNormalizer(NormalizationSupport):
         self.matches = MatchRepository(session)
         self.lineups = LineupRepository(session)
         self.player_stats = PlayerMatchStatRepository(session)
+        self.player_availability = PlayerAvailabilityRepository(session)
         self.matchup_events = MatchupEventRepository(session)
         self.spatial_events = SpatialEventRepository(session)
         self.competition_refs = CompetitionProviderReferenceRepository(session)
@@ -73,6 +75,8 @@ class ProviderNormalizer(NormalizationSupport):
             self._player(record.model_dump(exclude_none=True))
         for record in snapshot.team_memberships:
             self._membership(record.model_dump(exclude_none=True))
+        for record in snapshot.player_availability:
+            self._player_availability(record.model_dump(exclude_none=True))
         for record in snapshot.matches:
             self._match(record.model_dump(exclude_none=True))
         for record in snapshot.lineups:
@@ -185,6 +189,23 @@ class ProviderNormalizer(NormalizationSupport):
             start_date=values.get("start_date"),
         )
         self._create_or_refresh("team_memberships", self.memberships, entity, values)
+
+    def _player_availability(self, values: dict[str, Any]) -> None:
+        external_id = values.pop("external_id")
+        player_id = self._required_id(
+            self.player_refs, values.pop("player_external_id"), "player_id", "player"
+        )
+        team_id = self._required_id(
+            self.team_refs, values.pop("team_external_id"), "team_id", "team"
+        )
+        values.update(
+            provider=self.provider,
+            external_id=external_id,
+            player_id=player_id,
+            team_id=team_id,
+        )
+        entity = self.player_availability.get_by(provider=self.provider, external_id=external_id)
+        self._create_or_refresh("player_availability", self.player_availability, entity, values)
 
     def _match(self, values: dict[str, Any]) -> Match:
         external_id = values.pop("external_id")

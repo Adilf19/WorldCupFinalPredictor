@@ -11,6 +11,7 @@ from data_collection.contracts import (
     MatchRecord,
     MatchupEventRecord,
     PlayerMatchStatsRecord,
+    PlayerAvailabilityRecord,
     PlayerRecord,
     ProviderSnapshot,
     SpatialEventRecord,
@@ -42,6 +43,9 @@ class JsonFileProvider(DataProvider):
 
     async def fetch_matches(self) -> tuple[MatchRecord, ...]:
         return (await self._load()).matches
+
+    async def fetch_player_availability(self) -> tuple[PlayerAvailabilityRecord, ...]:
+        return (await self._load()).player_availability
 
     async def fetch_lineups(self) -> tuple[LineupRecord, ...]:
         return (await self._load()).lineups

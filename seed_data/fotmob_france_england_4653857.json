@@ -1,0 +1,833 @@
+{
+  "competitions": [
+    {
+      "external_id": "894789",
+      "name": "World Cup",
+      "country": "International",
+      "competition_type": "cup",
+      "format": "hybrid",
+      "team_type": "country",
+      "competition_tier": 1
+    }
+  ],
+  "teams": [
+    {
+      "external_id": "6723",
+      "name": "France",
+      "country": "France",
+      "team_type": "country",
+      "fifa_ranking": 3,
+      "manager": "Didier Deschamps",
+      "logo_url": "https://images.fotmob.com/image_resources/logo/teamlogo/6723.png"
+    },
+    {
+      "external_id": "8491",
+      "name": "England",
+      "country": "England",
+      "team_type": "country",
+      "fifa_ranking": 4,
+      "manager": "Thomas Tuchel",
+      "logo_url": "https://images.fotmob.com/image_resources/logo/teamlogo/8491.png"
+    }
+  ],
+  "players": [
+    {
+      "external_id": "466439",
+      "name": "Mike Maignan",
+      "nationality": "France",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/466439.png",
+      "primary_position": "GK"
+    },
+    {
+      "external_id": "1197250",
+      "name": "Malo Gusto",
+      "nationality": "France",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/1197250.png",
+      "primary_position": "DF"
+    },
+    {
+      "external_id": "820140",
+      "name": "Ibrahima Konaté",
+      "nationality": "France",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/820140.png",
+      "primary_position": "DF"
+    },
+    {
+      "external_id": "950485",
+      "name": "Maxence Lacroix",
+      "nationality": "France",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/950485.png",
+      "primary_position": "DF"
+    },
+    {
+      "external_id": "724371",
+      "name": "Theo Hernández",
+      "nationality": "France",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/724371.png",
+      "primary_position": "DF"
+    },
+    {
+      "external_id": "1367615",
+      "name": "Warren Zaïre-Emery",
+      "nationality": "France",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/1367615.png",
+      "primary_position": "MF"
+    },
+    {
+      "external_id": "352879",
+      "name": "Adrien Rabiot",
+      "nationality": "France",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/352879.png",
+      "primary_position": "MF"
+    },
+    {
+      "external_id": "1029063",
+      "name": "Michael Olise",
+      "nationality": "France",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/1029063.png",
+      "primary_position": "FW"
+    },
+    {
+      "external_id": "1104053",
+      "name": "Rayan Cherki",
+      "nationality": "France",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/1104053.png",
+      "primary_position": "MF"
+    },
+    {
+      "external_id": "1339208",
+      "name": "Désiré Doué",
+      "nationality": "France",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/1339208.png",
+      "primary_position": "FW"
+    },
+    {
+      "external_id": "701154",
+      "name": "Kylian Mbappé",
+      "nationality": "France",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/701154.png",
+      "primary_position": "FW"
+    },
+    {
+      "external_id": "279714",
+      "name": "Brice Samba",
+      "nationality": "France",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/279714.png",
+      "primary_position": "GK"
+    },
+    {
+      "external_id": "1390336",
+      "name": "Robin Risser",
+      "nationality": "France",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/1390336.png",
+      "primary_position": "GK"
+    },
+    {
+      "external_id": "658554",
+      "name": "Dayot Upamecano",
+      "nationality": "France",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/658554.png",
+      "primary_position": "DF"
+    },
+    {
+      "external_id": "705450",
+      "name": "Jules Koundé",
+      "nationality": "France",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/705450.png",
+      "primary_position": "DF"
+    },
+    {
+      "external_id": "210111",
+      "name": "Lucas Digne",
+      "nationality": "France",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/210111.png",
+      "primary_position": "DF"
+    },
+    {
+      "external_id": "504606",
+      "name": "Lucas Hernández",
+      "nationality": "France",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/504606.png",
+      "primary_position": "DF"
+    },
+    {
+      "external_id": "955406",
+      "name": "William Saliba",
+      "nationality": "France",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/955406.png",
+      "primary_position": "DF"
+    },
+    {
+      "external_id": "914458",
+      "name": "Aurélien Tchouaméni",
+      "nationality": "France",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/914458.png",
+      "primary_position": "MF"
+    },
+    {
+      "external_id": "1016132",
+      "name": "Kouadio Koné",
+      "nationality": "France",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/1016132.png",
+      "primary_position": "MF"
+    },
+    {
+      "external_id": "319300",
+      "name": "N'Golo Kanté",
+      "nationality": "France",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/319300.png",
+      "primary_position": "MF"
+    },
+    {
+      "external_id": "1297165",
+      "name": "Bradley Barcola",
+      "nationality": "France",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/1297165.png",
+      "primary_position": "FW"
+    },
+    {
+      "external_id": "706297",
+      "name": "Jean-Philippe Mateta",
+      "nationality": "France",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/706297.png",
+      "primary_position": "FW"
+    },
+    {
+      "external_id": "1305618",
+      "name": "Maghnes Akliouche",
+      "nationality": "France",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/1305618.png",
+      "primary_position": "FW"
+    },
+    {
+      "external_id": "621562",
+      "name": "Marcus Thuram",
+      "nationality": "France",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/621562.png",
+      "primary_position": "FW"
+    },
+    {
+      "external_id": "692984",
+      "name": "Ousmane Dembélé",
+      "nationality": "France",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/692984.png",
+      "primary_position": "FW"
+    },
+    {
+      "external_id": "719330",
+      "name": "Dean Henderson",
+      "nationality": "England",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/719330.png",
+      "primary_position": "GK"
+    },
+    {
+      "external_id": "1107620",
+      "name": "Jarell Quansah",
+      "nationality": "England",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/1107620.png",
+      "primary_position": "DF"
+    },
+    {
+      "external_id": "710159",
+      "name": "Ezri Konsa",
+      "nationality": "England",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/710159.png",
+      "primary_position": "DF"
+    },
+    {
+      "external_id": "844425",
+      "name": "Marc Guéhi",
+      "nationality": "England",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/844425.png",
+      "primary_position": "DF"
+    },
+    {
+      "external_id": "894803",
+      "name": "Djed Spence",
+      "nationality": "England",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/894803.png",
+      "primary_position": "DF"
+    },
+    {
+      "external_id": "654096",
+      "name": "Declan Rice",
+      "nationality": "England",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/654096.png",
+      "primary_position": "MF"
+    },
+    {
+      "external_id": "961995",
+      "name": "Bukayo Saka",
+      "nationality": "England",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/961995.png",
+      "primary_position": "FW"
+    },
+    {
+      "external_id": "818975",
+      "name": "Eberechi Eze",
+      "nationality": "England",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/818975.png",
+      "primary_position": "MF"
+    },
+    {
+      "external_id": "883080",
+      "name": "Morgan Rogers",
+      "nationality": "England",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/883080.png",
+      "primary_position": "MF"
+    },
+    {
+      "external_id": "696365",
+      "name": "Marcus Rashford",
+      "nationality": "England",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/696365.png",
+      "primary_position": "FW"
+    },
+    {
+      "external_id": "408987",
+      "name": "Ivan Toney",
+      "nationality": "England",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/408987.png",
+      "primary_position": "FW"
+    },
+    {
+      "external_id": "1187213",
+      "name": "James Trafford",
+      "nationality": "England",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/1187213.png",
+      "primary_position": "GK"
+    },
+    {
+      "external_id": "303919",
+      "name": "Jordan Pickford",
+      "nationality": "England",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/303919.png",
+      "primary_position": "GK"
+    },
+    {
+      "external_id": "188058",
+      "name": "Daniel Burn",
+      "nationality": "England",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/188058.png",
+      "primary_position": "DF"
+    },
+    {
+      "external_id": "263653",
+      "name": "John Stones",
+      "nationality": "England",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/263653.png",
+      "primary_position": "DF"
+    },
+    {
+      "external_id": "1300526",
+      "name": "Nico O'Reilly",
+      "nationality": "England",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/1300526.png",
+      "primary_position": "DF"
+    },
+    {
+      "external_id": "807729",
+      "name": "Reece James",
+      "nationality": "England",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/807729.png",
+      "primary_position": "DF"
+    },
+    {
+      "external_id": "793907",
+      "name": "Trevoh Chalobah",
+      "nationality": "England",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/793907.png",
+      "primary_position": "DF"
+    },
+    {
+      "external_id": "1089691",
+      "name": "Elliot Anderson",
+      "nationality": "England",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/1089691.png",
+      "primary_position": "MF"
+    },
+    {
+      "external_id": "156008",
+      "name": "Jordan Henderson",
+      "nationality": "England",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/156008.png",
+      "primary_position": "MF"
+    },
+    {
+      "external_id": "1077894",
+      "name": "Jude Bellingham",
+      "nationality": "England",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/1077894.png",
+      "primary_position": "MF"
+    },
+    {
+      "external_id": "906937",
+      "name": "Anthony Gordon",
+      "nationality": "England",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/906937.png",
+      "primary_position": "FW"
+    },
+    {
+      "external_id": "194165",
+      "name": "Harry Kane",
+      "nationality": "England",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/194165.png",
+      "primary_position": "FW"
+    },
+    {
+      "external_id": "1084981",
+      "name": "Noni Madueke",
+      "nationality": "England",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/1084981.png",
+      "primary_position": "FW"
+    },
+    {
+      "external_id": "540088",
+      "name": "Ollie Watkins",
+      "nationality": "England",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/540088.png",
+      "primary_position": "FW"
+    },
+    {
+      "external_id": "1292810",
+      "name": "Kobbie Mainoo",
+      "nationality": "England",
+      "photo_url": "https://images.fotmob.com/image_resources/playerimages/1292810.png",
+      "primary_position": null
+    }
+  ],
+  "team_memberships": [
+    {
+      "team_external_id": "6723",
+      "player_external_id": "466439"
+    },
+    {
+      "team_external_id": "6723",
+      "player_external_id": "1197250"
+    },
+    {
+      "team_external_id": "6723",
+      "player_external_id": "820140"
+    },
+    {
+      "team_external_id": "6723",
+      "player_external_id": "950485"
+    },
+    {
+      "team_external_id": "6723",
+      "player_external_id": "724371"
+    },
+    {
+      "team_external_id": "6723",
+      "player_external_id": "1367615"
+    },
+    {
+      "team_external_id": "6723",
+      "player_external_id": "352879"
+    },
+    {
+      "team_external_id": "6723",
+      "player_external_id": "1029063"
+    },
+    {
+      "team_external_id": "6723",
+      "player_external_id": "1104053"
+    },
+    {
+      "team_external_id": "6723",
+      "player_external_id": "1339208"
+    },
+    {
+      "team_external_id": "6723",
+      "player_external_id": "701154"
+    },
+    {
+      "team_external_id": "6723",
+      "player_external_id": "279714"
+    },
+    {
+      "team_external_id": "6723",
+      "player_external_id": "1390336"
+    },
+    {
+      "team_external_id": "6723",
+      "player_external_id": "658554"
+    },
+    {
+      "team_external_id": "6723",
+      "player_external_id": "705450"
+    },
+    {
+      "team_external_id": "6723",
+      "player_external_id": "210111"
+    },
+    {
+      "team_external_id": "6723",
+      "player_external_id": "504606"
+    },
+    {
+      "team_external_id": "6723",
+      "player_external_id": "955406"
+    },
+    {
+      "team_external_id": "6723",
+      "player_external_id": "914458"
+    },
+    {
+      "team_external_id": "6723",
+      "player_external_id": "1016132"
+    },
+    {
+      "team_external_id": "6723",
+      "player_external_id": "319300"
+    },
+    {
+      "team_external_id": "6723",
+      "player_external_id": "1297165"
+    },
+    {
+      "team_external_id": "6723",
+      "player_external_id": "706297"
+    },
+    {
+      "team_external_id": "6723",
+      "player_external_id": "1305618"
+    },
+    {
+      "team_external_id": "6723",
+      "player_external_id": "621562"
+    },
+    {
+      "team_external_id": "6723",
+      "player_external_id": "692984"
+    },
+    {
+      "team_external_id": "8491",
+      "player_external_id": "719330"
+    },
+    {
+      "team_external_id": "8491",
+      "player_external_id": "1107620"
+    },
+    {
+      "team_external_id": "8491",
+      "player_external_id": "710159"
+    },
+    {
+      "team_external_id": "8491",
+      "player_external_id": "844425"
+    },
+    {
+      "team_external_id": "8491",
+      "player_external_id": "894803"
+    },
+    {
+      "team_external_id": "8491",
+      "player_external_id": "654096"
+    },
+    {
+      "team_external_id": "8491",
+      "player_external_id": "961995"
+    },
+    {
+      "team_external_id": "8491",
+      "player_external_id": "818975"
+    },
+    {
+      "team_external_id": "8491",
+      "player_external_id": "883080"
+    },
+    {
+      "team_external_id": "8491",
+      "player_external_id": "696365"
+    },
+    {
+      "team_external_id": "8491",
+      "player_external_id": "408987"
+    },
+    {
+      "team_external_id": "8491",
+      "player_external_id": "1187213"
+    },
+    {
+      "team_external_id": "8491",
+      "player_external_id": "303919"
+    },
+    {
+      "team_external_id": "8491",
+      "player_external_id": "188058"
+    },
+    {
+      "team_external_id": "8491",
+      "player_external_id": "263653"
+    },
+    {
+      "team_external_id": "8491",
+      "player_external_id": "1300526"
+    },
+    {
+      "team_external_id": "8491",
+      "player_external_id": "807729"
+    },
+    {
+      "team_external_id": "8491",
+      "player_external_id": "793907"
+    },
+    {
+      "team_external_id": "8491",
+      "player_external_id": "1089691"
+    },
+    {
+      "team_external_id": "8491",
+      "player_external_id": "156008"
+    },
+    {
+      "team_external_id": "8491",
+      "player_external_id": "1077894"
+    },
+    {
+      "team_external_id": "8491",
+      "player_external_id": "906937"
+    },
+    {
+      "team_external_id": "8491",
+      "player_external_id": "194165"
+    },
+    {
+      "team_external_id": "8491",
+      "player_external_id": "1084981"
+    },
+    {
+      "team_external_id": "8491",
+      "player_external_id": "540088"
+    },
+    {
+      "team_external_id": "8491",
+      "player_external_id": "1292810"
+    }
+  ],
+  "player_availability": [
+    {
+      "external_id": "4653857-1292810",
+      "player_external_id": "1292810",
+      "team_external_id": "8491",
+      "status": "out",
+      "reason": "injury",
+      "reported_at": "2026-07-18T20:20:22.506Z",
+      "expected_return": null,
+      "confidence": 1
+    }
+  ],
+  "matches": [
+    {
+      "external_id": "4653857",
+      "competition_external_id": "894789",
+      "home_team_external_id": "6723",
+      "away_team_external_id": "8491",
+      "date": "2026-07-18",
+      "venue": "Miami Stadium",
+      "stage": "bronze",
+      "is_knockout": true
+    }
+  ],
+  "lineups": [
+    {
+      "match_external_id": "4653857",
+      "player_external_id": "466439",
+      "team_external_id": "6723",
+      "position": "GK",
+      "shirt_number": 16,
+      "starter": null,
+      "minutes_played": null
+    },
+    {
+      "match_external_id": "4653857",
+      "player_external_id": "1197250",
+      "team_external_id": "6723",
+      "position": "DF",
+      "shirt_number": 2,
+      "starter": null,
+      "minutes_played": null
+    },
+    {
+      "match_external_id": "4653857",
+      "player_external_id": "820140",
+      "team_external_id": "6723",
+      "position": "DF",
+      "shirt_number": 15,
+      "starter": null,
+      "minutes_played": null
+    },
+    {
+      "match_external_id": "4653857",
+      "player_external_id": "950485",
+      "team_external_id": "6723",
+      "position": "DF",
+      "shirt_number": 26,
+      "starter": null,
+      "minutes_played": null
+    },
+    {
+      "match_external_id": "4653857",
+      "player_external_id": "724371",
+      "team_external_id": "6723",
+      "position": "DF",
+      "shirt_number": 19,
+      "starter": null,
+      "minutes_played": null
+    },
+    {
+      "match_external_id": "4653857",
+      "player_external_id": "1367615",
+      "team_external_id": "6723",
+      "position": "MF",
+      "shirt_number": 18,
+      "starter": null,
+      "minutes_played": null
+    },
+    {
+      "match_external_id": "4653857",
+      "player_external_id": "352879",
+      "team_external_id": "6723",
+      "position": "MF",
+      "shirt_number": 14,
+      "starter": null,
+      "minutes_played": null
+    },
+    {
+      "match_external_id": "4653857",
+      "player_external_id": "1029063",
+      "team_external_id": "6723",
+      "position": "FW",
+      "shirt_number": 11,
+      "starter": null,
+      "minutes_played": null
+    },
+    {
+      "match_external_id": "4653857",
+      "player_external_id": "1104053",
+      "team_external_id": "6723",
+      "position": "MF",
+      "shirt_number": 24,
+      "starter": null,
+      "minutes_played": null
+    },
+    {
+      "match_external_id": "4653857",
+      "player_external_id": "1339208",
+      "team_external_id": "6723",
+      "position": "FW",
+      "shirt_number": 20,
+      "starter": null,
+      "minutes_played": null
+    },
+    {
+      "match_external_id": "4653857",
+      "player_external_id": "701154",
+      "team_external_id": "6723",
+      "position": "FW",
+      "shirt_number": 10,
+      "starter": null,
+      "minutes_played": null
+    },
+    {
+      "match_external_id": "4653857",
+      "player_external_id": "719330",
+      "team_external_id": "8491",
+      "position": "GK",
+      "shirt_number": 13,
+      "starter": null,
+      "minutes_played": null
+    },
+    {
+      "match_external_id": "4653857",
+      "player_external_id": "1107620",
+      "team_external_id": "8491",
+      "position": "DF",
+      "shirt_number": 26,
+      "starter": null,
+      "minutes_played": null
+    },
+    {
+      "match_external_id": "4653857",
+      "player_external_id": "710159",
+      "team_external_id": "8491",
+      "position": "DF",
+      "shirt_number": 2,
+      "starter": null,
+      "minutes_played": null
+    },
+    {
+      "match_external_id": "4653857",
+      "player_external_id": "844425",
+      "team_external_id": "8491",
+      "position": "DF",
+      "shirt_number": 6,
+      "starter": null,
+      "minutes_played": null
+    },
+    {
+      "match_external_id": "4653857",
+      "player_external_id": "894803",
+      "team_external_id": "8491",
+      "position": "DF",
+      "shirt_number": 25,
+      "starter": null,
+      "minutes_played": null
+    },
+    {
+      "match_external_id": "4653857",
+      "player_external_id": "654096",
+      "team_external_id": "8491",
+      "position": "MF",
+      "shirt_number": 4,
+      "starter": null,
+      "minutes_played": null
+    },
+    {
+      "match_external_id": "4653857",
+      "player_external_id": "961995",
+      "team_external_id": "8491",
+      "position": "FW",
+      "shirt_number": 7,
+      "starter": null,
+      "minutes_played": null
+    },
+    {
+      "match_external_id": "4653857",
+      "player_external_id": "818975",
+      "team_external_id": "8491",
+      "position": "MF",
+      "shirt_number": 21,
+      "starter": null,
+      "minutes_played": null
+    },
+    {
+      "match_external_id": "4653857",
+      "player_external_id": "883080",
+      "team_external_id": "8491",
+      "position": "MF",
+      "shirt_number": 17,
+      "starter": null,
+      "minutes_played": null
+    },
+    {
+      "match_external_id": "4653857",
+      "player_external_id": "696365",
+      "team_external_id": "8491",
+      "position": "FW",
+      "shirt_number": 11,
+      "starter": null,
+      "minutes_played": null
+    },
+    {
+      "match_external_id": "4653857",
+      "player_external_id": "408987",
+      "team_external_id": "8491",
+      "position": "FW",
+      "shirt_number": 22,
+      "starter": null,
+      "minutes_played": null
+    }
+  ]
+}

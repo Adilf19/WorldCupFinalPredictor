@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session, aliased
 
 from api.schemas import CompetitionCandidate, FixtureCandidate, LiveResponse
 from api.config import ApiSettings, settings
+from data_collection.api_football import ApiFootballClient, ApiFootballLiveProvider
 from data_collection.providers.football_data import (
     FootballDataClient,
     KNOCKOUT_STAGES,
@@ -108,10 +109,27 @@ class FootballDataFixtureProvider:
 
 
 class LiveFixtureProvider:
-    """Replaceable live-data boundary; no unlicensed FotMob automation."""
+    """Live-data boundary backed by API-Football for its selected fixtures."""
 
-    def confirmed_lineups(self, external_id: str) -> tuple[list[dict], list[dict]] | None:
+    def __init__(self, config: ApiSettings = settings) -> None:
+        self.api_football = (
+            ApiFootballLiveProvider(ApiFootballClient(
+                api_key=config.api_football_api_key,
+                base_url=config.api_football_base_url,
+            ))
+            if config.api_football_api_key else None
+        )
+
+    def confirmed_lineups(
+        self, provider: str, external_id: str
+    ) -> tuple[list[dict], list[dict]] | None:
+        if provider == "api_football" and self.api_football is not None:
+            return self.api_football.confirmed_lineups(external_id)
         return None
 
-    def live(self, external_id: str, *, scheduled_status: str) -> LiveResponse:
+    def live(self, provider: str, external_id: str, *, scheduled_status: str) -> LiveResponse:
+        if provider == "api_football" and self.api_football is not None:
+            return LiveResponse.model_validate(
+                self.api_football.live(external_id, scheduled_status=scheduled_status)
+            )
         return LiveResponse(status=scheduled_status, events=[])

@@ -1,11 +1,11 @@
 """Read-only squad and historical lineup queries."""
 
-from datetime import date
+from datetime import date, datetime, time, timezone
 
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, joinedload
 
-from database.models import Lineup, Match, Player, TeamPlayer
+from database.models import Lineup, Match, Player, PlayerAvailability, TeamPlayer
 
 
 class LineupHistory:
@@ -49,3 +49,24 @@ class LineupHistory:
             .options(joinedload(Lineup.player), joinedload(Lineup.match))
         )
         return list(self.session.scalars(statement).all())
+
+    def latest_availability(
+        self, *, team_id: int, player_ids: list[int], as_of: date
+    ) -> dict[int, PlayerAvailability]:
+        """Return the latest leakage-safe report per player before match day ends."""
+        if not player_ids:
+            return {}
+        cutoff = datetime.combine(as_of, time.max, tzinfo=timezone.utc)
+        reports = self.session.scalars(
+            select(PlayerAvailability)
+            .where(
+                PlayerAvailability.team_id == team_id,
+                PlayerAvailability.player_id.in_(player_ids),
+                PlayerAvailability.reported_at <= cutoff,
+            )
+            .order_by(PlayerAvailability.player_id, PlayerAvailability.reported_at.desc())
+        ).all()
+        latest: dict[int, PlayerAvailability] = {}
+        for report in reports:
+            latest.setdefault(report.player_id, report)
+        return latest

@@ -55,6 +55,7 @@ class Team(Base):
     fifa_ranking: Mapped[int | None] = mapped_column(Integer)
     elo_rating: Mapped[float | None] = mapped_column(Float)
     manager: Mapped[str | None] = mapped_column(String(100))
+    logo_url: Mapped[str | None] = mapped_column(String(500))
     playing_style: Mapped[str | None] = mapped_column(String(50))
     created_at: Mapped[datetime | None] = mapped_column(DateTime, server_default=func.current_timestamp())
 
@@ -101,6 +102,7 @@ class Player(Base):
     provider_references: Mapped[list["PlayerProviderReference"]] = relationship(
         back_populates="player", cascade="all, delete-orphan"
     )
+    availability: Mapped[list["PlayerAvailability"]] = relationship(back_populates="player")
 
 
 class TeamPlayer(Base):
@@ -116,6 +118,34 @@ class TeamPlayer(Base):
 
     team: Mapped[Team | None] = relationship(back_populates="players")
     player: Mapped[Player | None] = relationship(back_populates="teams")
+
+
+class PlayerAvailability(Base):
+    """Provider-timestamped injury, suspension, or availability report."""
+
+    __tablename__ = "player_availability"
+    __table_args__ = (
+        UniqueConstraint("provider", "external_id", name="uq_availability_provider_external"),
+        CheckConstraint(
+            "status IN ('available','doubtful','out','suspended','unknown')",
+            name="ck_player_availability_status",
+        ),
+        Index("idx_availability_player_reported", "player_id", "reported_at"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    provider: Mapped[str] = mapped_column(String(50))
+    external_id: Mapped[str] = mapped_column(String(255))
+    player_id: Mapped[int] = mapped_column(ForeignKey("players.id", ondelete="CASCADE"))
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"))
+    status: Mapped[str] = mapped_column(String(20))
+    reason: Mapped[str | None] = mapped_column(String(255))
+    reported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    expected_return: Mapped[date | None] = mapped_column(Date)
+    confidence: Mapped[float] = mapped_column(Float, server_default="1")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.current_timestamp())
+
+    player: Mapped[Player] = relationship(back_populates="availability")
 
 
 class Match(Base):
@@ -312,6 +342,7 @@ class Manager(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str | None] = mapped_column(String(100))
+    photo_url: Mapped[str | None] = mapped_column(String(500))
     tactical_style: Mapped[str | None] = mapped_column(String(50))
     pressing_level: Mapped[float | None] = mapped_column(Float)
     possession_preference: Mapped[float | None] = mapped_column(Float)

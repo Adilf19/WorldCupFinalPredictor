@@ -47,6 +47,30 @@ fixture entry. `CanonicalFixtureProvider` and `LiveFixtureProvider` are the
 boundaries where a licensed FotMob feed or another terms-compliant football API
 can be added without changing the UI.
 
+For local analysis, the separately installed FotMob MCP can export an on-demand
+snapshot into the same provider-neutral contract. The France–England snapshot
+stores FotMob's possible XI with `starter=null`, so it appears as provisional;
+only a post-kickoff refresh may write confirmed starters. Semifinal xG, shots,
+possession, passing, ratings and completed lineups are normalized as historical
+evidence. The MCP heatmap SVGs currently expose a second, undocumented player-ID
+namespace, so those coordinates are not attached to players unless a verified
+identity mapping is available.
+
+Sportradar media uses the official Images API manifests. Configure
+`SPORTRADAR_API_KEY`, `SPORTRADAR_ACCESS_LEVEL`,
+`SPORTRADAR_IMAGE_PROVIDER`, and `SPORTRADAR_IMAGE_LEAGUE`, then run
+`python -m scripts.sync_sportradar_media --year 2026`. Player/team matching is
+conservative and exact after normalizing accents; ambiguous assets are skipped.
+Manager coverage varies, so the app keeps a neutral fallback when no licensed
+profile image exists.
+
+For the lower-cost development path, configure `API_FOOTBALL_API_KEY` and run
+`python -m scripts.sync_api_football`. It resolves only the two active teams,
+then caches their player, manager and logo URLs in the canonical database. An
+API-Football fixture additionally enables confirmed-lineup, injury and live-event
+reads through the same provider boundary.
+
+
 ## Local setup
 
 ```bash

@@ -1,9 +1,10 @@
 """Tests for expected-lineup and positional-matchup prediction."""
 
 import unittest
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from uuid import uuid4
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from database.connection import engine
@@ -13,6 +14,7 @@ from database.crud import (
     MatchRepository,
     MatchupEventRepository,
     PlayerRepository,
+    PlayerAvailabilityRepository,
     TeamPlayerRepository,
     TeamRepository,
 )
@@ -215,6 +217,35 @@ class MatchupPipelinePostgresTests(unittest.TestCase):
                             }
                         )
 
+                unavailable = session.scalar(
+                    select(Player).where(
+                        Player.name == f"Home ST {suffix}"
+                    )
+                )
+                replacement = players.create({
+                    "name": f"Home Replacement ST {suffix}",
+                    "nationality": "Test",
+                    "primary_position": "ST",
+                })
+                memberships.create({
+                    "team_id": home_team.id,
+                    "player_id": replacement.id,
+                    "start_date": cutoff - timedelta(days=100),
+                    "end_date": cutoff + timedelta(days=1),
+                })
+                PlayerAvailabilityRepository(session).create({
+                    "provider": "test",
+                    "external_id": f"injury-{suffix}",
+                    "player_id": unavailable.id,
+                    "team_id": home_team.id,
+                    "status": "out",
+                    "reason": "Test injury",
+                    "reported_at": datetime.combine(
+                        cutoff - timedelta(days=1), datetime.min.time(), tzinfo=timezone.utc
+                    ),
+                    "confidence": 1.0,
+                })
+
                 prediction = MatchupPredictionPipeline(session).predict(
                     home_team_id=home_team.id,
                     away_team_id=away_team.id,
@@ -224,9 +255,19 @@ class MatchupPipelinePostgresTests(unittest.TestCase):
                 self.assertEqual(len(prediction.home_lineup.players), 11)
                 self.assertEqual(len(prediction.away_lineup.players), 11)
                 self.assertEqual(prediction.home_lineup.completeness, 1.0)
-                self.assertEqual(prediction.home_lineup.evidence_coverage, 1.0)
+                self.assertNotIn(unavailable.id, [player.player_id for player in prediction.home_lineup.players])
+                self.assertIn(replacement.id, [player.player_id for player in prediction.home_lineup.players])
+                self.assertAlmostEqual(prediction.home_lineup.evidence_coverage, 10 / 11)
                 self.assertGreater(prediction.home_lineup.confidence, 0)
-                self.assertEqual(len(prediction.battles), 13)
+                self.assertEqual(len(prediction.battles), 12)
+                keeper_battles = [
+                    battle for battle in prediction.battles
+                    if battle.method == "goalkeeper_form_comparison"
+                ]
+                self.assertEqual(len(keeper_battles), 1)
+                self.assertEqual(keeper_battles[0].home_role, "GK")
+                self.assertEqual(keeper_battles[0].away_role, "GK")
+                self.assertIsNone(keeper_battles[0].spatial_overlap)
                 self.assertIsNotNone(prediction.overall_home_advantage)
                 self.assertGreater(float(prediction.overall_home_advantage), 0)
                 self.assertGreater(prediction.evidence_coverage, 0)

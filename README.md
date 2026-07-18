@@ -1,8 +1,8 @@
 # ⚽ Adil's Football Game Predictor
 
-A modular, explainable football analytics engine. The initial target is
-**Spain vs Argentina — 2026 FIFA World Cup Final**, but the architecture is
-built to score *any* club or international fixture without redesign.
+A modular, explainable football analytics engine. The dashboard can select
+*any* club or international fixture without redesign; the current local demo
+defaults to France vs England in the 2026 World Cup third-place match.
 
 > **Status:** The PostgreSQL/SQLAlchemy data layer, provider ingestion, two-season
 > team and player form, lineup and spatial matchup engines, LightGBM goal model,
@@ -128,6 +128,14 @@ The official football-data.org API supplies competitions, future fixtures,
 squads and multi-season match history when `FOOTBALL_DATA_API_TOKEN` is set.
 Recent international results can also be ingested from the CC0
 `international_results` dataset without scraping a consumer website.
+Licensed player headshots and team logos can be synchronized from Sportradar's
+documented Images API. The key stays server-side and media is delivered through
+a constrained, cacheable proxy instead of being exposed in browser URLs.
+API-Football provides the lower-cost development path for active-team player
+headshots, logos, managers, fixture injuries, confirmed lineups and live events.
+Add `API_FOOTBALL_API_KEY` to `.env`, select a fixture, then use **Sync active
+fixture media** in Owner access or run `python -m scripts.sync_api_football`.
+The API key stays in FastAPI; the browser receives documented media-CDN URLs.
 
 ### 2. Database
 Relational PostgreSQL schema (`schema.sql`) mapped by fully typed SQLAlchemy
@@ -148,7 +156,7 @@ features, squad stability, and chemistry remain future pipeline stages.
 
 ### 4. Matchup Engine — the differentiator
 Instead of modeling only "Spain vs Argentina," this models every
-individual on-pitch battle (RW↔LB, ST↔CB, CAM↔DM, GK↔ST, etc.):
+individual outfield battle (RW↔LB, ST↔CB, CAM↔DM, etc.):
 
 1. **Lineup Predictor** — implemented expected-XI selection from active squads,
    historical starts, minutes, recency, and positional compatibility. Every
@@ -171,6 +179,10 @@ individual on-pitch battle (RW↔LB, ST↔CB, CAM↔DM, GK↔ST, etc.):
    These are on-ball action maps, not continuous off-ball tracking. When event
    coverage is sparse, the 13-battle positional attribute scorer is retained as
    an explicit fallback rather than fabricating spatial evidence.
+5. **Goalkeeper Comparison** — keepers are never paired to outfield players by
+   heatmap. Their separate card compares starts, goals conceded per 90, clean
+   sheets, xG prevented, and ratings wherever those fields are covered. Missing
+   keeper history remains visibly unscored rather than appearing as 50/50.
 
 ### 5. Prediction Model
 The implemented baseline trains two Poisson-objective LightGBM models for home

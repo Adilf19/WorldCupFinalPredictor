@@ -17,7 +17,7 @@ from api.schemas import (
     PublicPrediction,
     SelectFixtureBody,
 )
-from database.models import Competition, Prediction, SelectedFixture, Team
+from database.models import Competition, Lineup, Manager, Player, Prediction, SelectedFixture, Team
 from feature_engineering.pipeline import MatchFeaturePipeline
 from matchup_engine import MatchupPredictionPipeline
 from prediction_model import LightGBMGoalPredictor
@@ -39,12 +39,27 @@ class SelectedFixtureService:
 
     def active(self) -> ActiveFixture | None:
         fixture = self.active_model()
-        return ActiveFixture.model_validate(fixture) if fixture else None
+        if fixture is None:
+            return None
+        home = self.session.get(Team, fixture.home_team_id) if fixture.home_team_id else None
+        away = self.session.get(Team, fixture.away_team_id) if fixture.away_team_id else None
+        home_manager = self.session.scalar(select(Manager).where(Manager.name == home.manager)) if home and home.manager else None
+        away_manager = self.session.scalar(select(Manager).where(Manager.name == away.manager)) if away and away.manager else None
+        return ActiveFixture.model_validate(fixture).model_copy(update={
+            "home_logo_url": home.logo_url if home else None,
+            "away_logo_url": away.logo_url if away else None,
+            "home_manager": home.manager if home else None,
+            "away_manager": away.manager if away else None,
+            "home_manager_photo_url": home_manager.photo_url if home_manager else None,
+            "away_manager_photo_url": away_manager.photo_url if away_manager else None,
+        })
 
     def select(self, body: SelectFixtureBody, *, owner_email: str) -> ActiveFixture:
         if body.kickoff_at.tzinfo is None:
             raise ValueError("kickoff_at must include a timezone")
-        if body.provider not in {"manual", "canonical", "licensed", "fifa_official", "football_data"}:
+        if body.provider not in {
+            "manual", "canonical", "licensed", "fifa_official", "football_data", "api_football"
+        }:
             raise ValueError("Unsupported fixture provider")
         self.session.execute(update(SelectedFixture).values(is_active=False))
         external_id = body.external_id or f"manual-{uuid4()}"
@@ -181,9 +196,17 @@ class DashboardService:
         fixture = self.fixtures.active_model()
         if fixture is None or fixture.home_team_id is None or fixture.away_team_id is None:
             return None
-        confirmed = (
-            self.live_provider.confirmed_lineups(fixture.external_id)
-            if datetime.now(timezone.utc) >= fixture.kickoff_at else None
+        matchups = MatchupPredictionPipeline(self.session).predict(
+            home_team_id=fixture.home_team_id,
+            away_team_id=fixture.away_team_id,
+            as_of=fixture.kickoff_at.date(),
+        )
+        model_home = [player.model_dump(mode="json") for player in matchups.home_lineup.players]
+        model_away = [player.model_dump(mode="json") for player in matchups.away_lineup.players]
+        provisional = self._canonical_provisional_lineups(fixture)
+        predicted_home, predicted_away = provisional or (model_home, model_away)
+        confirmed = self._canonical_confirmed_lineups(fixture) or self.live_provider.confirmed_lineups(
+            fixture.provider, fixture.external_id
         )
         if confirmed:
             return LineupResponse(
@@ -191,12 +214,12 @@ class DashboardService:
                 provider_status="confirmed lineup supplied by licensed provider",
                 home=confirmed[0],
                 away=confirmed[1],
+                predicted_home=predicted_home,
+                predicted_away=predicted_away,
+                actual_home=confirmed[0],
+                actual_away=confirmed[1],
+                actual_status="confirmed",
             )
-        matchups = MatchupPredictionPipeline(self.session).predict(
-            home_team_id=fixture.home_team_id,
-            away_team_id=fixture.away_team_id,
-            as_of=fixture.kickoff_at.date(),
-        )
         after_kickoff = datetime.now(timezone.utc) >= fixture.kickoff_at
         return LineupResponse(
             mode="awaiting_confirmation" if after_kickoff else "expected",
@@ -204,14 +227,61 @@ class DashboardService:
                 "Kickoff reached; awaiting a confirmed lineup feed"
                 if after_kickoff
                 else (
-                    "FIFA-published possible XI, evaluated by the matchup model"
+                    "FotMob possible XI, kept provisional until official confirmation"
+                    if provisional
+                    else "FIFA-published possible XI, evaluated by the matchup model"
                     if fixture.external_id == "fifa-world-cup-2026-match-103-bronze-final"
                     else "Model-predicted lineup"
                 )
             ),
-            home=[player.model_dump(mode="json") for player in matchups.home_lineup.players],
-            away=[player.model_dump(mode="json") for player in matchups.away_lineup.players],
+            home=predicted_home,
+            away=predicted_away,
+            predicted_home=predicted_home,
+            predicted_away=predicted_away,
+            actual_home=[],
+            actual_away=[],
+            actual_status="pending",
         )
+
+    def _canonical_provisional_lineups(
+        self, fixture: SelectedFixture
+    ) -> tuple[list[dict], list[dict]] | None:
+        """Use provider possible XIs without mislabelling them as confirmed."""
+        return self._canonical_lineup_rows(fixture, starter=None)
+
+    def _canonical_confirmed_lineups(
+        self, fixture: SelectedFixture
+    ) -> tuple[list[dict], list[dict]] | None:
+        """Use normalized starters as the actual XI once a provider writes them."""
+        return self._canonical_lineup_rows(fixture, starter=True)
+
+    def _canonical_lineup_rows(
+        self, fixture: SelectedFixture, *, starter: bool | None
+    ) -> tuple[list[dict], list[dict]] | None:
+        if fixture.match_id is None:
+            return None
+        rows = self.session.execute(
+            select(Lineup, Player)
+            .join(Player, Lineup.player_id == Player.id)
+            .where(Lineup.match_id == fixture.match_id, Lineup.starter.is_(starter))
+            .order_by(Lineup.team_id, Lineup.id)
+        ).all()
+        by_team: dict[int, list[dict]] = {}
+        for lineup, player in rows:
+            by_team.setdefault(lineup.team_id, []).append({
+                "player_id": player.id,
+                "player_name": player.name,
+                "photo_url": player.photo_url,
+                "shirt_number": lineup.shirt_number,
+                "assigned_role": lineup.position,
+                "primary_position": player.primary_position,
+                "confidence": 1.0,
+                "availability_status": "available",
+                "availability_reason": None,
+            })
+        home = by_team.get(fixture.home_team_id or -1, [])
+        away = by_team.get(fixture.away_team_id or -1, [])
+        return (home, away) if len(home) >= 11 and len(away) >= 11 else None
 
     def live(self) -> LiveResponse:
         fixture = self.fixtures.active_model()
@@ -219,4 +289,6 @@ class DashboardService:
             return LiveResponse(status="no_fixture", events=[])
         now = datetime.now(timezone.utc)
         status = "scheduled" if now < fixture.kickoff_at else "awaiting_live_provider"
-        return self.live_provider.live(fixture.external_id, scheduled_status=status)
+        return self.live_provider.live(
+            fixture.provider, fixture.external_id, scheduled_status=status
+        )
