@@ -91,6 +91,21 @@ def _snapshot_payload(suffix: str) -> dict[str, object]:
                 "attacking_duels_won": 3,
             }
         ],
+        "spatial_events": [
+            {
+                "external_id": "event-1",
+                "match_external_id": "match-1",
+                "team_external_id": "team-home",
+                "player_external_id": "player-home",
+                "event_type": "Pass",
+                "period": 1,
+                "minute": 12,
+                "x": 0.25,
+                "y": 0.75,
+                "end_x": 0.5,
+                "end_y": 0.7,
+            }
+        ],
     }
 
 
@@ -114,6 +129,7 @@ class ProviderContractTests(unittest.TestCase):
             snapshot = asyncio.run(provider.fetch_snapshot())
         self.assertEqual(len(snapshot.teams), 2)
         self.assertEqual(snapshot.matches[0].external_id, "match-1")
+        self.assertEqual(snapshot.spatial_events[0].x, 0.25)
 
 
 class ProviderNormalizationPostgresTests(unittest.TestCase):

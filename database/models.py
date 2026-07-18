@@ -5,6 +5,7 @@ from typing import Any
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Date,
     DateTime,
     Float,
@@ -91,6 +92,7 @@ class Player(Base):
     embeddings: Mapped[list["PlayerEmbedding"]] = relationship(back_populates="player")
     attacking_events: Mapped[list["MatchupEvent"]] = relationship(foreign_keys="MatchupEvent.attacker_id", back_populates="attacker")
     defending_events: Mapped[list["MatchupEvent"]] = relationship(foreign_keys="MatchupEvent.defender_id", back_populates="defender")
+    spatial_events: Mapped[list["SpatialEvent"]] = relationship(back_populates="player")
     provider_references: Mapped[list["PlayerProviderReference"]] = relationship(
         back_populates="player", cascade="all, delete-orphan"
     )
@@ -141,6 +143,7 @@ class Match(Base):
     lineups: Mapped[list["Lineup"]] = relationship(back_populates="match")
     player_stats: Mapped[list["PlayerMatchStat"]] = relationship(back_populates="match")
     matchup_events: Mapped[list["MatchupEvent"]] = relationship(back_populates="match")
+    spatial_events: Mapped[list["SpatialEvent"]] = relationship(back_populates="match")
     predictions: Mapped[list["Prediction"]] = relationship(back_populates="match")
     provider_references: Mapped[list["MatchProviderReference"]] = relationship(
         back_populates="match", cascade="all, delete-orphan"
@@ -242,6 +245,40 @@ class MatchupEvent(Base):
     match: Mapped[Match | None] = relationship(back_populates="matchup_events")
     attacker: Mapped[Player | None] = relationship(foreign_keys=[attacker_id], back_populates="attacking_events")
     defender: Mapped[Player | None] = relationship(foreign_keys=[defender_id], back_populates="defending_events")
+
+
+class SpatialEvent(Base):
+    """A provider action location retained for reproducible spatial models."""
+
+    __tablename__ = "spatial_events"
+    __table_args__ = (
+        UniqueConstraint("provider", "external_id", name="uq_spatial_provider_external"),
+        CheckConstraint("x >= 0 AND x <= 1 AND y >= 0 AND y <= 1", name="ck_spatial_start_unit_pitch"),
+        CheckConstraint("(end_x IS NULL OR (end_x >= 0 AND end_x <= 1)) AND (end_y IS NULL OR (end_y >= 0 AND end_y <= 1))", name="ck_spatial_end_unit_pitch"),
+        Index("idx_spatial_player", "player_id"),
+        Index("idx_spatial_match", "match_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    provider: Mapped[str] = mapped_column(String(50))
+    external_id: Mapped[str] = mapped_column(String(255))
+    match_id: Mapped[int] = mapped_column(ForeignKey("matches.id", ondelete="CASCADE"))
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"))
+    player_id: Mapped[int] = mapped_column(ForeignKey("players.id", ondelete="CASCADE"))
+    event_type: Mapped[str] = mapped_column(String(50))
+    period: Mapped[int] = mapped_column(Integer)
+    minute: Mapped[int] = mapped_column(Integer)
+    second: Mapped[float] = mapped_column(Float, server_default="0")
+    x: Mapped[float] = mapped_column(Float)
+    y: Mapped[float] = mapped_column(Float)
+    end_x: Mapped[float | None] = mapped_column(Float)
+    end_y: Mapped[float | None] = mapped_column(Float)
+    outcome: Mapped[str | None] = mapped_column(String(50))
+    under_pressure: Mapped[bool] = mapped_column(Boolean, server_default="false")
+    created_at: Mapped[datetime | None] = mapped_column(DateTime, server_default=func.current_timestamp())
+
+    match: Mapped[Match] = relationship(back_populates="spatial_events")
+    player: Mapped[Player] = relationship(back_populates="spatial_events")
 
 
 class PlayerEmbedding(Base):

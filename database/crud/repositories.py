@@ -20,6 +20,7 @@ from database.models import (
     PlayerProviderReference,
     Prediction,
     SimulationResult,
+    SpatialEvent,
     Team,
     TeamPlayer,
     TeamProviderReference,
@@ -56,6 +57,10 @@ class PlayerMatchStatRepository(Repository[PlayerMatchStat]):
 
 class MatchupEventRepository(Repository[MatchupEvent]):
     model = MatchupEvent
+
+
+class SpatialEventRepository(Repository[SpatialEvent]):
+    model = SpatialEvent
 
 
 class PlayerEmbeddingRepository(Repository[PlayerEmbedding]):

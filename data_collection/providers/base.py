@@ -11,6 +11,7 @@ from data_collection.contracts import (
     PlayerMatchStatsRecord,
     PlayerRecord,
     ProviderSnapshot,
+    SpatialEventRecord,
     TeamRecord,
 )
 
@@ -66,6 +67,10 @@ class DataProvider(ABC):
     async def fetch_matchup_events(self) -> tuple[MatchupEventRecord, ...]:
         """Fetch aggregated player-v-player matchup events."""
 
+    async def fetch_spatial_events(self) -> tuple[SpatialEventRecord, ...]:
+        """Fetch normalized event locations when the provider exposes them."""
+        return ()
+
     async def fetch_snapshot(self) -> ProviderSnapshot:
         """Fetch one normalized snapshot in dependency order."""
         return ProviderSnapshot(
@@ -76,4 +81,5 @@ class DataProvider(ABC):
             lineups=await self.fetch_lineups(),
             player_match_stats=await self.fetch_player_match_stats(),
             matchup_events=await self.fetch_matchup_events(),
+            spatial_events=await self.fetch_spatial_events(),
         )

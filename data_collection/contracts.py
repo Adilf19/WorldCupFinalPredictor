@@ -133,6 +133,25 @@ class MatchupEventRecord(ProviderRecord):
     xa_generated: float | None = Field(default=None, ge=0)
 
 
+class SpatialEventRecord(ProviderRecord):
+    """One player action with provider coordinates normalized to a unit pitch."""
+
+    external_id: str = Field(min_length=1, max_length=255)
+    match_external_id: str = Field(min_length=1, max_length=255)
+    team_external_id: str = Field(min_length=1, max_length=255)
+    player_external_id: str = Field(min_length=1, max_length=255)
+    event_type: str = Field(min_length=1, max_length=50)
+    period: int = Field(ge=1, le=5)
+    minute: int = Field(ge=0, le=130)
+    second: float = Field(default=0.0, ge=0, lt=60)
+    x: float = Field(ge=0, le=1)
+    y: float = Field(ge=0, le=1)
+    end_x: float | None = Field(default=None, ge=0, le=1)
+    end_y: float | None = Field(default=None, ge=0, le=1)
+    outcome: str | None = Field(default=None, max_length=50)
+    under_pressure: bool = False
+
+
 class ProviderSnapshot(ProviderRecord):
     """One internally consistent provider payload ready for normalization."""
 
@@ -143,6 +162,7 @@ class ProviderSnapshot(ProviderRecord):
     lineups: tuple[LineupRecord, ...] = ()
     player_match_stats: tuple[PlayerMatchStatsRecord, ...] = ()
     matchup_events: tuple[MatchupEventRecord, ...] = ()
+    spatial_events: tuple[SpatialEventRecord, ...] = ()
 
     @model_validator(mode="after")
     def validate_references(self) -> "ProviderSnapshot":

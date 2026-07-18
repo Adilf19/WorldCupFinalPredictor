@@ -22,6 +22,7 @@ from database.crud import (
     PlayerMatchStatRepository,
     PlayerProviderReferenceRepository,
     PlayerRepository,
+    SpatialEventRepository,
     TeamProviderReferenceRepository,
     TeamRepository,
 )
@@ -54,6 +55,7 @@ class ProviderNormalizer(NormalizationSupport):
         self.lineups = LineupRepository(session)
         self.player_stats = PlayerMatchStatRepository(session)
         self.matchup_events = MatchupEventRepository(session)
+        self.spatial_events = SpatialEventRepository(session)
         self.competition_refs = CompetitionProviderReferenceRepository(session)
         self.team_refs = TeamProviderReferenceRepository(session)
         self.player_refs = PlayerProviderReferenceRepository(session)
@@ -75,6 +77,8 @@ class ProviderNormalizer(NormalizationSupport):
             self._player_match_stats(record.model_dump(exclude_none=True))
         for record in snapshot.matchup_events:
             self._matchup_event(record.model_dump(exclude_none=True))
+        for record in snapshot.spatial_events:
+            self._spatial_event(record.model_dump(exclude_none=True))
         return self.report
 
     def _competition(self, values: dict[str, Any]) -> Competition:
@@ -286,3 +290,18 @@ class ProviderNormalizer(NormalizationSupport):
         self._create_or_refresh(
             "matchup_events", self.matchup_events, entity, values
         )
+
+    def _spatial_event(self, values: dict[str, Any]) -> None:
+        external_id = values.pop("external_id")
+        match_id = self._required_id(self.match_refs, values.pop("match_external_id"), "match_id", "match")
+        team_id = self._required_id(self.team_refs, values.pop("team_external_id"), "team_id", "team")
+        player_id = self._required_id(self.player_refs, values.pop("player_external_id"), "player_id", "player")
+        values.update(
+            provider=self.provider,
+            external_id=external_id,
+            match_id=match_id,
+            team_id=team_id,
+            player_id=player_id,
+        )
+        entity = self.spatial_events.get_by(provider=self.provider, external_id=external_id)
+        self._create_or_refresh("spatial_events", self.spatial_events, entity, values)

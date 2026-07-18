@@ -13,6 +13,7 @@ from data_collection.contracts import (
     PlayerMatchStatsRecord,
     PlayerRecord,
     ProviderSnapshot,
+    SpatialEventRecord,
     TeamRecord,
 )
 from data_collection.providers.base import DataProvider, validate_provider_key
@@ -50,6 +51,9 @@ class JsonFileProvider(DataProvider):
 
     async def fetch_matchup_events(self) -> tuple[MatchupEventRecord, ...]:
         return (await self._load()).matchup_events
+
+    async def fetch_spatial_events(self) -> tuple[SpatialEventRecord, ...]:
+        return (await self._load()).spatial_events
 
     async def fetch_snapshot(self) -> ProviderSnapshot:
         """Return the validated file snapshot without reassembling it."""

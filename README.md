@@ -6,8 +6,8 @@ built to score *any* club or international fixture without redesign.
 
 > **Status:** PostgreSQL schema, SQLAlchemy ORM, CRUD repositories, migrations,
 > the Spain/Argentina seed, provider contracts, JSON adapter, and transactional
-> provider-to-ORM normalization are implemented. Feature engineering and model
-> stages remain on the roadmap.
+> provider-to-ORM normalization, team features, predicted lineups, and spatial
+> player matchups are implemented. Training and simulation remain on the roadmap.
 
 ---
 
@@ -122,7 +122,9 @@ Transfermarkt, Sofascore, FIFA, Opta-future) implements a common
 import ORM models. The ingestion layer resolves provider external IDs to
 canonical database entities, then writes the entire snapshot in one
 caller-owned transaction. A validated JSON adapter is included for licensed
-exports, fixtures, and deterministic integration testing.
+exports, fixtures, and deterministic integration testing. The included
+[StatsBomb Open Data](https://github.com/hudl/open-data) adapter ingests public
+World Cup lineups and event coordinates into provider-neutral spatial records.
 
 ### 2. Database
 Relational PostgreSQL schema (`schema.sql`) mapped by fully typed SQLAlchemy
@@ -145,8 +147,9 @@ features, squad stability, and chemistry remain future pipeline stages.
 Instead of modeling only "Spain vs Argentina," this models every
 individual on-pitch battle (RW↔LB, ST↔CB, CAM↔DM, GK↔ST, etc.):
 
-1. **Lineup Predictor** — expected XIs → auto-generated positional
-   pairings.
+1. **Lineup Predictor** — implemented expected-XI selection from active squads,
+   historical starts, minutes, recency, and positional compatibility. Every
+   selection includes evidence coverage and confidence.
 2. **Direct H2H Engine** — pulls prior meetings between the two
    specific players (minutes, goals, xG, duel success, average rating,
    team result), recency-weighted.
@@ -155,11 +158,14 @@ individual on-pitch battle (RW↔LB, ST↔CB, CAM↔DM, GK↔ST, etc.):
    pressing, passing, creativity, crossing, dribbling, finishing,
    positioning, progressive passing/carrying — and compares performance
    against *similar* opponents instead.
-4. **Positional Matchup Score** — combines direct H2H, similarity H2H,
-   recent form, physical mismatch, tactical fit, expected support,
-   fitness, World Cup form, and club form into one numeric advantage
-   score per battle (e.g. `RW vs LB: +0.41 Spain`). These scores feed
-   the Prediction Model as features — they are not the final output.
+4. **Spatial Matchup Score** — the primary engine builds recency-weighted action
+   heatmaps on a configurable unit-pitch grid. It rotates each opposition map
+   into the home team's physical frame and pairs every covered predicted player
+   with the opponent whose action map has the highest overlap. Each result
+   includes overlap, advantage, confidence, samples, and UI-ready heatmap cells.
+   These are on-ball action maps, not continuous off-ball tracking. When event
+   coverage is sparse, the 13-battle positional attribute scorer is retained as
+   an explicit fallback rather than fabricating spatial evidence.
 
 ### 5. Prediction Model
 No single "predict the winner" black box. The model (LightGBM/XGBoost
@@ -280,6 +286,16 @@ python -m scripts.ingest_provider_json \
 Provider I/O finishes before ORM writes begin. Re-running the same provider IDs
 updates revised match data instead of duplicating canonical records.
 
+Ingest the official open 2022 World Cup actions for Spain and Argentina with:
+
+```bash
+python -m scripts.ingest_statsbomb_spatial
+```
+
+The public data is supplied by StatsBomb and requires source attribution. Its
+event locations describe actions on the ball; richer 360/tracking data can be
+added later behind the same normalized spatial-event contract.
+
 Build the Spain–Argentina team comparison with:
 
 ```bash
@@ -292,6 +308,15 @@ python -m scripts.build_team_features \
 Missing historical statistics remain `null` and reduce the reported coverage;
 the pipeline never replaces absent provider data with invented zeroes.
 
+Predict both lineups and their spatial battles (with positional fallback) with:
+
+```bash
+python -m scripts.predict_matchups \
+  --home Spain \
+  --away Argentina \
+  --as-of 2026-07-19
+```
+
 ---
 
 ## Roadmap
@@ -303,11 +328,12 @@ the pipeline never replaces absent provider data with invented zeroes.
 5. ✅ Implement first provider (validated JSON adapter).
 6. ✅ Normalize provider data into ORM models.
 7. ✅ Create team feature engineering pipeline.
-8. Build lineup predictor.
+8. ✅ Build lineup predictor.
 9. Build H2H (head to head matchup) engine.
 10. Build player similarity engine.
-11. Build positional matchup engine.
-12. Train baseline LightGBM model.
+11. ✅ Build baseline positional matchup predictor.
+12. ✅ Build action-heatmap matchup predictor and open-data ingestion.
+13. Train baseline LightGBM model.
 13. Add Monte Carlo simulation.
 14. Build FastAPI endpoints.
 15. Build React frontend.
