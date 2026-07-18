@@ -4,9 +4,9 @@ A modular, explainable football analytics engine. The initial target is
 **Spain vs Argentina — 2026 FIFA World Cup Final**, but the architecture is
 built to score *any* club or international fixture without redesign.
 
-> **Status:** architecture + repo scaffold. Modules below are stubbed with
-> interfaces and docstrings, not trained models or live data pulls. See
-> [Roadmap](#roadmap) for build order.
+> **Status:** PostgreSQL schema, SQLAlchemy ORM, CRUD repositories, and the
+> idempotent Spain/Argentina final seed are implemented. Data-provider and
+> modelling stages remain on the roadmap.
 
 ---
 
@@ -121,13 +121,11 @@ provider returns into the shared schema before it ever touches the
 database — so the DB never needs to know which vendor a stat came from.
 
 ### 2. Database
-Relational schema (`schema.sql`) keyed around `matches`, `teams`,
-`players`, `player_match_stats`, `team_match_stats`, and
-`competitions` (with a `competition_tier` field used later for
-recency/importance weighting — World Cup > qualifiers > Nations League
-> friendlies > club football). No provider-specific columns; a
-`source_provider` + `source_id` pair on each row preserves provenance
-without leaking vendor shape into the schema.
+Relational PostgreSQL schema (`schema.sql`) mapped by fully typed SQLAlchemy
+2.0 models. Transaction-neutral CRUD repositories flush without committing,
+so services can write a match, lineups, and statistics atomically. Provider
+provenance identifiers will be added in a controlled schema migration before
+the first provider integration.
 
 ### 3. Feature Engineering
 Turns raw match/player rows into model-ready features:
@@ -249,23 +247,30 @@ any code is written):
 ## Getting Started
 
 ```bash
-git clone <your-repo-url>
-cd wc-prediction-platform
-python -m venv .venv && source .venv/bin/activate
+git clone https://github.com/Adilf19/WorldCupFinalPredictor.git
+cd WorldCupFinalPredictor
+python3.13 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env
 ```
 
-Data providers, database credentials, and model configs will live in a
-`.env` file (not committed) once the Data Collection module has a real
-adapter implemented.
+Set `DATABASE_URL` in `.env`, load `schema.sql`, then seed the confirmed
+26-player squads and the 19 July final fixture. The seed is safe to rerun.
+
+```bash
+python test_database.py
+python -m scripts.seed_world_cup_final
+python -m unittest discover -v
+```
 
 ---
 
 ## Roadmap
 
-1. Build proper SQLAlchemy ORM models matching the PostgreSQL schema.
-2. Create database CRUD utilities.
-3. Build seed scripts for Spain and Argentina.
+1. ✅ Build proper SQLAlchemy ORM models matching the PostgreSQL schema.
+2. ✅ Create database CRUD utilities.
+3. ✅ Build seed scripts for Spain and Argentina.
 4. Create provider abstraction.
 5. Implement first provider.
 6. Normalize provider data into ORM models.
