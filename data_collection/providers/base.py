@@ -13,6 +13,7 @@ from data_collection.contracts import (
     ProviderSnapshot,
     SpatialEventRecord,
     TeamRecord,
+    TeamMembershipRecord,
 )
 
 _PROVIDER_KEY_PATTERN = re.compile(r"^[a-z][a-z0-9_-]{1,49}$")
@@ -55,6 +56,10 @@ class DataProvider(ABC):
     async def fetch_matches(self) -> tuple[MatchRecord, ...]:
         """Fetch match-level records."""
 
+    async def fetch_team_memberships(self) -> tuple[TeamMembershipRecord, ...]:
+        """Fetch player memberships when squad data is available."""
+        return ()
+
     @abstractmethod
     async def fetch_lineups(self) -> tuple[LineupRecord, ...]:
         """Fetch lineup records."""
@@ -77,6 +82,7 @@ class DataProvider(ABC):
             competitions=await self.fetch_competitions(),
             teams=await self.fetch_teams(),
             players=await self.fetch_players(),
+            team_memberships=await self.fetch_team_memberships(),
             matches=await self.fetch_matches(),
             lineups=await self.fetch_lineups(),
             player_match_stats=await self.fetch_player_match_stats(),

@@ -31,6 +31,8 @@ class Competition(Base):
     name: Mapped[str] = mapped_column(String(100))
     country: Mapped[str | None] = mapped_column(String(100))
     competition_type: Mapped[str | None] = mapped_column(String(50))
+    format: Mapped[str] = mapped_column(String(20), server_default="league")
+    team_type: Mapped[str] = mapped_column(String(20), server_default="club")
     competition_tier: Mapped[float | None] = mapped_column(Float, server_default="0.5")
     created_at: Mapped[datetime | None] = mapped_column(DateTime, server_default=func.current_timestamp())
 
@@ -44,10 +46,12 @@ class Team(Base):
     """A club or international football team."""
 
     __tablename__ = "teams"
+    __table_args__ = (Index("idx_teams_team_type", "team_type"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(100))
     country: Mapped[str | None] = mapped_column(String(100))
+    team_type: Mapped[str] = mapped_column(String(20), server_default="club")
     fifa_ranking: Mapped[int | None] = mapped_column(Integer)
     elo_rating: Mapped[float | None] = mapped_column(Float)
     manager: Mapped[str | None] = mapped_column(String(100))
@@ -72,6 +76,7 @@ class Player(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(100))
     nationality: Mapped[str | None] = mapped_column(String(100))
+    photo_url: Mapped[str | None] = mapped_column(String(500))
     primary_position: Mapped[str | None] = mapped_column(String(20))
     secondary_position: Mapped[str | None] = mapped_column(String(20))
     preferred_foot: Mapped[str | None] = mapped_column(String(10))
@@ -117,7 +122,10 @@ class Match(Base):
     """A scheduled or completed football match and its team-level statistics."""
 
     __tablename__ = "matches"
-    __table_args__ = (Index("idx_matches_date", "date"),)
+    __table_args__ = (
+        Index("idx_matches_date", "date"),
+        Index("idx_matches_competition_date", "competition_id", "date"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     competition_id: Mapped[int | None] = mapped_column(ForeignKey("competitions.id"))
@@ -135,6 +143,8 @@ class Match(Base):
     home_pass_accuracy: Mapped[float | None] = mapped_column(Float)
     away_pass_accuracy: Mapped[float | None] = mapped_column(Float)
     venue: Mapped[str | None] = mapped_column(String(50))
+    stage: Mapped[str | None] = mapped_column(String(50))
+    is_knockout: Mapped[bool] = mapped_column(Boolean, server_default="false")
     created_at: Mapped[datetime | None] = mapped_column(DateTime, server_default=func.current_timestamp())
 
     competition: Mapped[Competition | None] = relationship(back_populates="matches")
@@ -393,6 +403,18 @@ class OwnerSession(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.current_timestamp())
 
 
+class OwnerLoginAttempt(Base):
+    """Auditable password-login result used for rolling-window lockout."""
+
+    __tablename__ = "owner_login_attempts"
+    __table_args__ = (Index("idx_owner_attempt_ip_created", "request_ip", "created_at"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    request_ip: Mapped[str] = mapped_column(String(64))
+    succeeded: Mapped[bool] = mapped_column(Boolean, server_default="false")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.current_timestamp())
+
+
 class SelectedFixture(Base):
     """Owner-selected fixture currently presented by the public dashboard."""
 
@@ -412,6 +434,9 @@ class SelectedFixture(Base):
     home_team_id: Mapped[int | None] = mapped_column(ForeignKey("teams.id"))
     away_team_id: Mapped[int | None] = mapped_column(ForeignKey("teams.id"))
     match_id: Mapped[int | None] = mapped_column(ForeignKey("matches.id"))
+    competition_id: Mapped[int | None] = mapped_column(ForeignKey("competitions.id"))
+    competition_name: Mapped[str | None] = mapped_column(String(100))
+    competition_format: Mapped[str] = mapped_column(String(20), server_default="league")
     is_active: Mapped[bool] = mapped_column(Boolean, server_default="true")
     created_by: Mapped[str] = mapped_column(String(320))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.current_timestamp())

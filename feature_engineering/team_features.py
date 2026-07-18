@@ -67,6 +67,7 @@ class TeamFeaturePipeline:
             team_id=team_id,
             as_of=as_of,
             limit=self.config.lookback_matches,
+            lookback_days=self.config.lookback_days,
         )
         perspectives = [
             self._perspective(match=match, team_id=team_id, as_of=as_of)

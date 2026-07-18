@@ -3,20 +3,15 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ApiSchema(BaseModel):
     model_config = ConfigDict(extra="forbid", from_attributes=True)
 
 
-class RequestCodeBody(ApiSchema):
-    email: EmailStr
-
-
-class VerifyCodeBody(ApiSchema):
-    email: EmailStr
-    code: str = Field(pattern=r"^\d{4}$")
+class OwnerLoginBody(ApiSchema):
+    password: str = Field(min_length=8, max_length=256)
 
 
 class FixtureCandidate(ApiSchema):
@@ -29,6 +24,25 @@ class FixtureCandidate(ApiSchema):
     home_team_id: int | None = None
     away_team_id: int | None = None
     timing_accuracy: str = "exact"
+    competition_id: int | None = None
+    competition_name: str | None = None
+    competition_format: str = "league"
+
+
+class CompetitionCandidate(ApiSchema):
+    provider: str
+    external_id: str
+    code: str | None = None
+    name: str
+    country: str | None = None
+    format: str
+    team_type: str
+    current_season: int | None = None
+
+
+class SyncCompetitionBody(ApiSchema):
+    competition: str = Field(min_length=1, max_length=20)
+    seasons: list[int] = Field(min_length=1, max_length=2)
 
 
 class SelectFixtureBody(FixtureCandidate):
@@ -43,15 +57,16 @@ class ActiveFixture(FixtureCandidate):
 
 class PublicPrediction(ApiSchema):
     model_version: str
+    match_format: str
     expected_goals_home: float
     expected_goals_away: float
     home_win_probability: float
     draw_probability: float
     away_win_probability: float
-    home_qualification_probability: float
-    away_qualification_probability: float
-    extra_time_probability: float
-    penalties_probability: float
+    home_qualification_probability: float | None = None
+    away_qualification_probability: float | None = None
+    extra_time_probability: float | None = None
+    penalties_probability: float | None = None
     projected_home_goals: int
     projected_away_goals: int
     model_inputs: dict[str, float | int | None]

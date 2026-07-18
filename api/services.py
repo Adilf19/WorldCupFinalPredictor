@@ -17,7 +17,7 @@ from api.schemas import (
     PublicPrediction,
     SelectFixtureBody,
 )
-from database.models import Prediction, SelectedFixture, Team
+from database.models import Competition, Prediction, SelectedFixture, Team
 from feature_engineering.pipeline import MatchFeaturePipeline
 from matchup_engine import MatchupPredictionPipeline
 from prediction_model import LightGBMGoalPredictor
@@ -44,7 +44,7 @@ class SelectedFixtureService:
     def select(self, body: SelectFixtureBody, *, owner_email: str) -> ActiveFixture:
         if body.kickoff_at.tzinfo is None:
             raise ValueError("kickoff_at must include a timezone")
-        if body.provider not in {"manual", "canonical", "licensed", "fifa_official"}:
+        if body.provider not in {"manual", "canonical", "licensed", "fifa_official", "football_data"}:
             raise ValueError("Unsupported fixture provider")
         self.session.execute(update(SelectedFixture).values(is_active=False))
         external_id = body.external_id or f"manual-{uuid4()}"
@@ -62,6 +62,9 @@ class SelectedFixtureService:
             "home_team_id": body.home_team_id or self._team_id(body.home_name),
             "away_team_id": body.away_team_id or self._team_id(body.away_name),
             "match_id": body.match_id,
+            "competition_id": body.competition_id or self._competition_id(body.competition_name),
+            "competition_name": body.competition_name,
+            "competition_format": body.competition_format,
             "is_active": True,
             "created_by": owner_email,
         }
@@ -76,6 +79,12 @@ class SelectedFixtureService:
 
     def _team_id(self, name: str) -> int | None:
         matches = self.session.scalars(select(Team).where(Team.name == name).limit(2)).all()
+        return matches[0].id if len(matches) == 1 else None
+
+    def _competition_id(self, name: str | None) -> int | None:
+        if not name:
+            return None
+        matches = self.session.scalars(select(Competition).where(Competition.name == name).limit(2)).all()
         return matches[0].id if len(matches) == 1 else None
 
 
@@ -100,16 +109,18 @@ class DashboardService:
             expected_goals_home=goals.expected_goals_home,
             expected_goals_away=goals.expected_goals_away,
         )
-        extra_time = MonteCarloSimulator(simulations=50_000, random_seed=20260720).simulate(
-            expected_goals_home=goals.expected_goals_home / 3,
-            expected_goals_away=goals.expected_goals_away / 3,
-        )
-        home_from_level = (
-            extra_time.home_win_probability + extra_time.draw_probability * 0.5
+        is_knockout = fixture.competition_format == "knockout"
+        extra_time = (
+            MonteCarloSimulator(simulations=50_000, random_seed=20260720).simulate(
+                expected_goals_home=goals.expected_goals_home / 3,
+                expected_goals_away=goals.expected_goals_away / 3,
+            ) if is_knockout else None
         )
         home_qualification = (
             simulation.home_win_probability
-            + simulation.draw_probability * home_from_level
+            + simulation.draw_probability
+            * (extra_time.home_win_probability + extra_time.draw_probability * 0.5)
+            if extra_time else None
         )
         comparison = MatchFeaturePipeline(self.session).build(
             home_team_id=fixture.home_team_id,
@@ -127,15 +138,16 @@ class DashboardService:
         }
         return PublicPrediction(
             model_version=goals.model_version,
+            match_format=fixture.competition_format,
             expected_goals_home=goals.expected_goals_home,
             expected_goals_away=goals.expected_goals_away,
             home_win_probability=simulation.home_win_probability,
             draw_probability=simulation.draw_probability,
             away_win_probability=simulation.away_win_probability,
             home_qualification_probability=home_qualification,
-            away_qualification_probability=1 - home_qualification,
-            extra_time_probability=simulation.draw_probability,
-            penalties_probability=simulation.draw_probability * extra_time.draw_probability,
+            away_qualification_probability=1 - home_qualification if home_qualification is not None else None,
+            extra_time_probability=simulation.draw_probability if extra_time else None,
+            penalties_probability=simulation.draw_probability * extra_time.draw_probability if extra_time else None,
             projected_home_goals=int(goals.expected_goals_home + 0.5),
             projected_away_goals=int(goals.expected_goals_away + 0.5),
             model_inputs=inputs,

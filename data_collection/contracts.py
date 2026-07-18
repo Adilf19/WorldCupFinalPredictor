@@ -19,6 +19,8 @@ class CompetitionRecord(ProviderRecord):
     name: str = Field(min_length=1, max_length=100)
     country: str | None = Field(default=None, max_length=100)
     competition_type: str | None = Field(default=None, max_length=50)
+    format: str = Field(default="league", pattern=r"^(league|knockout|hybrid)$")
+    team_type: str = Field(default="club", pattern=r"^(club|country)$")
     competition_tier: float | None = Field(default=None, ge=0.0, le=1.0)
 
 
@@ -28,6 +30,7 @@ class TeamRecord(ProviderRecord):
     external_id: str = Field(min_length=1, max_length=255)
     name: str = Field(min_length=1, max_length=100)
     country: str | None = Field(default=None, max_length=100)
+    team_type: str = Field(default="club", pattern=r"^(club|country)$")
     fifa_ranking: int | None = Field(default=None, ge=1)
     elo_rating: float | None = Field(default=None, ge=0)
     manager: str | None = Field(default=None, max_length=100)
@@ -40,6 +43,7 @@ class PlayerRecord(ProviderRecord):
     external_id: str = Field(min_length=1, max_length=255)
     name: str = Field(min_length=1, max_length=100)
     nationality: str | None = Field(default=None, max_length=100)
+    photo_url: str | None = Field(default=None, max_length=500)
     primary_position: str | None = Field(default=None, max_length=20)
     secondary_position: str | None = Field(default=None, max_length=20)
     preferred_foot: str | None = Field(default=None, max_length=10)
@@ -52,6 +56,15 @@ class PlayerRecord(ProviderRecord):
     finishing: float | None = Field(default=None, ge=0)
     defending: float | None = Field(default=None, ge=0)
     creativity: float | None = Field(default=None, ge=0)
+
+
+class TeamMembershipRecord(ProviderRecord):
+    """A player's time-bounded club or country squad membership."""
+
+    team_external_id: str = Field(min_length=1, max_length=255)
+    player_external_id: str = Field(min_length=1, max_length=255)
+    start_date: date | None = None
+    end_date: date | None = None
 
 
 class MatchRecord(ProviderRecord):
@@ -73,6 +86,8 @@ class MatchRecord(ProviderRecord):
     home_pass_accuracy: float | None = Field(default=None, ge=0, le=100)
     away_pass_accuracy: float | None = Field(default=None, ge=0, le=100)
     venue: str | None = Field(default=None, max_length=50)
+    stage: str | None = Field(default=None, max_length=50)
+    is_knockout: bool = False
 
 
 class LineupRecord(ProviderRecord):
@@ -158,6 +173,7 @@ class ProviderSnapshot(ProviderRecord):
     competitions: tuple[CompetitionRecord, ...] = ()
     teams: tuple[TeamRecord, ...] = ()
     players: tuple[PlayerRecord, ...] = ()
+    team_memberships: tuple[TeamMembershipRecord, ...] = ()
     matches: tuple[MatchRecord, ...] = ()
     lineups: tuple[LineupRecord, ...] = ()
     player_match_stats: tuple[PlayerMatchStatsRecord, ...] = ()

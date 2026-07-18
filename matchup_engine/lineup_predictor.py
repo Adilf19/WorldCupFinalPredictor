@@ -12,6 +12,7 @@ from matchup_engine.config import PredictorConfig
 from matchup_engine.contracts import PredictedLineup, PredictedLineupPlayer
 from matchup_engine.lineup_history import LineupHistory
 from matchup_engine.positions import position_compatibility
+from feature_engineering.player_form import PlayerContextForm, PlayerFormPipeline
 
 
 @dataclass(slots=True)
@@ -24,6 +25,8 @@ class PlayerEvidence:
     minutes: float = 0.0
     position_weights: dict[str, float] = field(default_factory=lambda: defaultdict(float))
     evidence_score: float = 0.0
+    context_form: PlayerContextForm | None = None
+    shirt_numbers: dict[int, float] = field(default_factory=lambda: defaultdict(float))
 
 
 class LineupPredictor:
@@ -35,6 +38,7 @@ class LineupPredictor:
         self.session = session
         self.config = config or PredictorConfig()
         self.history = LineupHistory(session)
+        self.player_form = PlayerFormPipeline(session)
 
     def predict(self, *, team_id: int, as_of: date) -> PredictedLineup:
         """Predict the expected XI from active squad and prior lineup evidence."""
@@ -59,6 +63,10 @@ class LineupPredictor:
                 "compatibility only."
             )
         evidence = self._evidence(squad=squad, lineups=lineups, as_of=as_of)
+        for item in evidence.values():
+            item.context_form = self.player_form.build(
+                player_id=item.player.id, target_team_type=team.team_type, as_of=as_of
+            )
         selected = self._assign_roles(evidence)
         if any(
             player.primary_position in {"DF", "MF", "FW"} for player in selected
@@ -112,6 +120,8 @@ class LineupPredictor:
             player_evidence.minutes += weight * (minutes / 90)
             if lineup.position:
                 player_evidence.position_weights[lineup.position] += weight
+            if lineup.shirt_number:
+                player_evidence.shirt_numbers[lineup.shirt_number] += weight
 
         maximum = max(
             (
@@ -128,7 +138,15 @@ class LineupPredictor:
     def _assign_roles(
         self, evidence: dict[int, PlayerEvidence]
     ) -> list[PredictedLineupPlayer]:
-        available = dict(evidence)
+        # Choose the XI from recent selection evidence first, then assign the
+        # internal comparison roles. This prevents a rigid 4-3-3 template from
+        # dropping a frequently selected midfielder merely because another
+        # player has a more specific provider position label.
+        goalkeepers = [item for item in evidence.values() if item.player.primary_position == "GK"]
+        outfield = [item for item in evidence.values() if item.player.primary_position != "GK"]
+        selected_pool = sorted(goalkeepers, key=self._selection_priority, reverse=True)[:1]
+        selected_pool.extend(sorted(outfield, key=self._selection_priority, reverse=True)[:10])
+        available = {item.player.id: item for item in selected_pool}
         selected: list[PredictedLineupPlayer] = []
         for role in self.config.formation_roles:
             candidates = [
@@ -151,6 +169,8 @@ class LineupPredictor:
                 PredictedLineupPlayer(
                     player_id=chosen.player.id,
                     player_name=chosen.player.name,
+                    photo_url=chosen.player.photo_url,
+                    shirt_number=max(chosen.shirt_numbers, key=chosen.shirt_numbers.get) if chosen.shirt_numbers else None,
                     assigned_role=role,
                     primary_position=chosen.player.primary_position,
                     secondary_position=chosen.player.secondary_position,
@@ -159,14 +179,26 @@ class LineupPredictor:
                     weighted_appearances=round(chosen.appearances, 6),
                     weighted_starts=round(chosen.starts, 6),
                     weighted_minutes=round(chosen.minutes, 6),
+                    club_form=chosen.context_form.club_form if chosen.context_form else None,
+                    country_form=chosen.context_form.country_form if chosen.context_form else None,
+                    blended_form=chosen.context_form.blended_form if chosen.context_form else None,
+                    form_coverage=chosen.context_form.coverage if chosen.context_form else 0,
                 )
             )
             del available[chosen.player.id]
         return selected
 
+    @staticmethod
+    def _selection_priority(evidence: PlayerEvidence) -> tuple[float, float, float, int]:
+        form = evidence.context_form.blended_form if evidence.context_form else None
+        score = evidence.evidence_score if form is None else 0.75 * evidence.evidence_score + 0.25 * form
+        return score, evidence.starts, evidence.minutes, -evidence.player.id
+
     def _role_score(self, evidence: PlayerEvidence, role: str) -> float:
         compatibility = self._compatibility(evidence, role)
-        return compatibility * (0.35 + 0.65 * evidence.evidence_score)
+        form = evidence.context_form.blended_form if evidence.context_form else None
+        evidence_score = evidence.evidence_score if form is None else 0.65 * evidence.evidence_score + 0.35 * form
+        return compatibility * (0.35 + 0.65 * evidence_score)
 
     @staticmethod
     def _compatibility(evidence: PlayerEvidence, role: str) -> float:

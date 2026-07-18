@@ -34,6 +34,8 @@ def main() -> None:
                 home_team_id=spain.id,
                 away_team_id=argentina.id,
                 timing_accuracy="exact",
+                competition_name="FIFA World Cup 2026",
+                competition_format="knockout",
             ),
             owner_email="system:fifa_official",
         )

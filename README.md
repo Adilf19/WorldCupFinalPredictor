@@ -1,14 +1,13 @@
-# ⚽ World Cup Prediction Platform
+# ⚽ Adil's Football Game Predictor
 
 A modular, explainable football analytics engine. The initial target is
 **Spain vs Argentina — 2026 FIFA World Cup Final**, but the architecture is
 built to score *any* club or international fixture without redesign.
 
-> **Status:** PostgreSQL schema, SQLAlchemy ORM, CRUD repositories, migrations,
-> the Spain/Argentina seed, provider contracts, JSON adapter, and transactional
-> provider-to-ORM normalization, team features, predicted lineups, and spatial
-> player matchups, a trained LightGBM goal baseline, and Monte Carlo scoreline
-> simulation are implemented. API and frontend delivery remain on the roadmap.
+> **Status:** The PostgreSQL/SQLAlchemy data layer, provider ingestion, two-season
+> team and player form, lineup and spatial matchup engines, LightGBM goal model,
+> Monte Carlo simulation, FastAPI API, owner controls, and React dashboard are
+> implemented end to end.
 
 ---
 
@@ -117,8 +116,7 @@ wc-prediction-platform/
 ## Module Reference
 
 ### 1. Data Collection
-Adapter pattern: each provider (FotMob, FBref, Understat, StatsBomb,
-Transfermarkt, Sofascore, FIFA, Opta-future) implements a common
+Adapter pattern: each provider implements a common
 `DataProvider` interface. Adapters return strict Pydantic records and never
 import ORM models. The ingestion layer resolves provider external IDs to
 canonical database entities, then writes the entire snapshot in one
@@ -126,6 +124,10 @@ caller-owned transaction. A validated JSON adapter is included for licensed
 exports, fixtures, and deterministic integration testing. The included
 [StatsBomb Open Data](https://github.com/hudl/open-data) adapter ingests public
 World Cup lineups and event coordinates into provider-neutral spatial records.
+The official football-data.org API supplies competitions, future fixtures,
+squads and multi-season match history when `FOOTBALL_DATA_API_TOKEN` is set.
+Recent international results can also be ingested from the CC0
+`international_results` dataset without scraping a consumer website.
 
 ### 2. Database
 Relational PostgreSQL schema (`schema.sql`) mapped by fully typed SQLAlchemy
@@ -190,8 +192,8 @@ its scoreline buckets in PostgreSQL.
 ### 7. API
 The implemented FastAPI service exposes the active fixture, prediction inputs
 and outputs, heatmap/H2H/similarity matchups, expected/confirmed lineup state,
-and live-provider state. Owner-only endpoints use expiring email verification
-and an HttpOnly session cookie to select the dashboard fixture.
+and live-provider state. Owner-only endpoints use a rate-limited password and
+an HttpOnly session cookie to select the dashboard fixture.
 
 ### 8. Frontend
 The implemented React/TypeScript dashboard consumes only FastAPI. Its compact
@@ -286,6 +288,25 @@ python test_database.py
 python -m scripts.seed_world_cup_final
 python -m unittest discover -v
 ```
+
+For owner login, generate a long random `AUTH_SECRET`, then run
+`python -m scripts.hash_owner_password` and copy its output into `.env`.
+The password itself is never stored; three failed attempts from one address
+trigger a 15-minute lockout. Set `COOKIE_SECURE=true` in an HTTPS deployment.
+To enable competition search and official future fixtures, add a
+football-data.org API token. The owner panel reports missing configuration
+without exposing secret values.
+
+Load the most recent two seasons of Spain and Argentina internationals with:
+
+```bash
+python -m scripts.ingest_recent_internationals
+```
+
+After configuring football-data.org, the owner panel can synchronize a selected
+competition's last two seasons and choose one of its upcoming fixtures. League
+fixtures retain a 90-minute win/draw/loss forecast; knockout fixtures add a
+separate extra-time and penalties qualification layer.
 
 Provider-neutral JSON exports can be validated and ingested with:
 

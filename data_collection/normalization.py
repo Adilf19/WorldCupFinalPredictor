@@ -25,6 +25,7 @@ from database.crud import (
     SpatialEventRepository,
     TeamProviderReferenceRepository,
     TeamRepository,
+    TeamPlayerRepository,
 )
 from database.models import Competition, Match, Player, Team
 
@@ -51,6 +52,7 @@ class ProviderNormalizer(NormalizationSupport):
         self.competitions = CompetitionRepository(session)
         self.teams = TeamRepository(session)
         self.players = PlayerRepository(session)
+        self.memberships = TeamPlayerRepository(session)
         self.matches = MatchRepository(session)
         self.lineups = LineupRepository(session)
         self.player_stats = PlayerMatchStatRepository(session)
@@ -69,6 +71,8 @@ class ProviderNormalizer(NormalizationSupport):
             self._team(record.model_dump(exclude_none=True))
         for record in snapshot.players:
             self._player(record.model_dump(exclude_none=True))
+        for record in snapshot.team_memberships:
+            self._membership(record.model_dump(exclude_none=True))
         for record in snapshot.matches:
             self._match(record.model_dump(exclude_none=True))
         for record in snapshot.lineups:
@@ -166,6 +170,21 @@ class ProviderNormalizer(NormalizationSupport):
         else:
             self._fill_missing("players", self.players, entity, values)
         return entity
+
+    def _membership(self, values: dict[str, Any]) -> None:
+        team_id = self._required_id(
+            self.team_refs, values.pop("team_external_id"), "team_id", "team"
+        )
+        player_id = self._required_id(
+            self.player_refs, values.pop("player_external_id"), "player_id", "player"
+        )
+        values.update(team_id=team_id, player_id=player_id)
+        entity = self.memberships.get_by(
+            team_id=team_id,
+            player_id=player_id,
+            start_date=values.get("start_date"),
+        )
+        self._create_or_refresh("team_memberships", self.memberships, entity, values)
 
     def _match(self, values: dict[str, Any]) -> Match:
         external_id = values.pop("external_id")

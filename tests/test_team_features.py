@@ -18,6 +18,12 @@ from feature_engineering.weighting import (
 
 
 class WeightingTests(unittest.TestCase):
+    def test_default_history_window_is_two_seasons(self) -> None:
+        config = TeamFeatureConfig()
+        self.assertEqual(config.lookback_days, 730)
+        self.assertEqual(config.lookback_matches, 60)
+        self.assertEqual(config.full_confidence_matches, 20)
+
     def test_recency_weight_halves_at_half_life(self) -> None:
         self.assertAlmostEqual(
             recency_weight(age_days=180, half_life_days=180), 0.5

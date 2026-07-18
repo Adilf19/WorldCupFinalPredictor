@@ -1,6 +1,7 @@
 """FastAPI surface for owner administration and the public match dashboard."""
 
 from pathlib import Path
+from dataclasses import asdict
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,13 +11,15 @@ from sqlalchemy.orm import Session
 from api.auth import COOKIE_NAME, OwnerAuthService, require_owner
 from api.config import settings
 from api.dependencies import get_db
-from api.email import EmailDeliveryNotConfigured
-from api.fixture_provider import CanonicalFixtureProvider
-from api.schemas import RequestCodeBody, SelectFixtureBody, VerifyCodeBody
+from api.fixture_provider import CanonicalFixtureProvider, FootballDataFixtureProvider
+from api.schemas import OwnerLoginBody, SelectFixtureBody, SyncCompetitionBody
 from api.services import DashboardService, SelectedFixtureService
 from database.models import OwnerSession
+from data_collection.normalization import ProviderNormalizer
+from data_collection.providers import FootballDataProvider
+import httpx
 
-app = FastAPI(title="World Cup Final Predictor API", version="1.0.0")
+app = FastAPI(title="Adil's Football Game Predictor API", version="1.1.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=list(settings.allowed_origins),
@@ -31,20 +34,32 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.post("/api/auth/request-code", status_code=status.HTTP_202_ACCEPTED)
-def request_code(body: RequestCodeBody, request: Request, session: Session = Depends(get_db)) -> dict[str, str]:
-    try:
-        OwnerAuthService(session).request_code(
-            email=str(body.email), request_ip=request.client.host if request.client else None
-        )
-    except EmailDeliveryNotConfigured as error:
-        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(error)) from error
-    return {"message": "If this is the owner address, a code has been sent."}
+@app.get("/api/auth/status")
+def auth_status() -> dict:
+    missing = []
+    if not settings.auth_secret:
+        missing.append("AUTH_SECRET")
+    if not settings.owner_password_hash:
+        missing.append("OWNER_PASSWORD_HASH")
+    return {"configured": not missing, "owner_email": settings.owner_email, "missing": missing}
 
 
-@app.post("/api/auth/verify-code")
-def verify_code(body: VerifyCodeBody, response: Response, session: Session = Depends(get_db)) -> dict[str, bool]:
-    token = OwnerAuthService(session).verify_code(email=str(body.email), code=body.code)
+@app.post("/api/auth/login")
+def login(
+    body: OwnerLoginBody,
+    request: Request,
+    response: Response,
+    session: Session = Depends(get_db),
+) -> dict[str, bool]:
+    token = OwnerAuthService(session).login(
+        password=body.password,
+        request_ip=request.client.host if request.client else None,
+    )
+    if token is None:
+        # Persist the failed attempt before returning 401; the request-scoped
+        # transaction otherwise rolls back when FastAPI raises the exception.
+        session.commit()
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid owner password")
     response.set_cookie(
         COOKIE_NAME,
         token,
@@ -77,6 +92,7 @@ def me(owner: OwnerSession = Depends(require_owner)) -> dict[str, str | bool]:
 @app.get("/api/admin/fixtures/search")
 def search_fixtures(
     q: str = "",
+    competition: str | None = None,
     owner: OwnerSession = Depends(require_owner),
     session: Session = Depends(get_db),
 ) -> dict:
@@ -87,6 +103,56 @@ def search_fixtures(
             "reason": "Automated FotMob access is disabled pending licensed permission.",
         },
     }
+
+
+@app.get("/api/admin/competitions")
+async def list_competitions(owner: OwnerSession = Depends(require_owner)) -> dict:
+    try:
+        provider = FootballDataFixtureProvider()
+        return {"provider": "football_data", "configured": True, "results": [
+            item.model_dump(mode="json") for item in await provider.competitions()
+        ]}
+    except ValueError as error:
+        return {"provider": "football_data", "configured": False, "results": [], "reason": str(error)}
+    except httpx.HTTPError as error:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Football data provider request failed") from error
+
+
+@app.get("/api/admin/provider-fixtures")
+async def provider_fixtures(
+    competition: str,
+    q: str = "",
+    owner: OwnerSession = Depends(require_owner),
+) -> dict:
+    try:
+        results = await FootballDataFixtureProvider().search(competition, q)
+        return {"results": [item.model_dump(mode="json") for item in results]}
+    except ValueError as error:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(error)) from error
+    except httpx.HTTPError as error:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Football data provider request failed") from error
+
+
+@app.post("/api/admin/competitions/sync")
+async def sync_competition(
+    body: SyncCompetitionBody,
+    owner: OwnerSession = Depends(require_owner),
+    session: Session = Depends(get_db),
+) -> dict:
+    if not settings.football_data_api_token:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "FOOTBALL_DATA_API_TOKEN is not configured")
+    provider = FootballDataProvider(
+        token=settings.football_data_api_token,
+        base_url=settings.football_data_base_url,
+        competition=body.competition,
+        seasons=tuple(body.seasons),
+    )
+    try:
+        snapshot = await provider.fetch_snapshot()
+    except httpx.HTTPError as error:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Competition history sync failed") from error
+    report = ProviderNormalizer(session, provider=provider.key).normalize(snapshot)
+    return {"competition": body.competition, "seasons": body.seasons, "report": asdict(report)}
 
 
 @app.post("/api/admin/fixture")

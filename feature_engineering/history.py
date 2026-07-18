@@ -1,6 +1,6 @@
 """Read-only match-history queries used by feature pipelines."""
 
-from datetime import date
+from datetime import date, timedelta
 
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, joinedload
@@ -15,7 +15,7 @@ class TeamMatchHistory:
         self.session = session
 
     def completed_before(
-        self, *, team_id: int, as_of: date, limit: int
+        self, *, team_id: int, as_of: date, limit: int, lookback_days: int | None = None
     ) -> list[Match]:
         """Return newest completed matches strictly before the cutoff date."""
         statement = (
@@ -23,6 +23,7 @@ class TeamMatchHistory:
             .where(
                 or_(Match.home_team == team_id, Match.away_team == team_id),
                 Match.date < as_of,
+                Match.date >= as_of - timedelta(days=lookback_days) if lookback_days else True,
                 Match.home_goals.is_not(None),
                 Match.away_goals.is_not(None),
             )

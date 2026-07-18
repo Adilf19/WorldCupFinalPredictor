@@ -93,6 +93,8 @@ class WorldCupFinalSeeder:
                 "name": "FIFA World Cup 2026",
                 "country": "International",
                 "competition_type": "international",
+                "format": "hybrid",
+                "team_type": "country",
                 "competition_tier": 1.0,
             }
         )
@@ -101,7 +103,7 @@ class WorldCupFinalSeeder:
         team = self.teams.get_by(name=seed.name)
         if team is None:
             team = self.teams.create(
-                {"name": seed.name, "country": seed.country, "manager": seed.manager}
+                {"name": seed.name, "country": seed.country, "team_type": "country", "manager": seed.manager}
             )
             self.summary.teams_created += 1
         else:
@@ -188,6 +190,8 @@ class WorldCupFinalSeeder:
                 "home_team": home_team.id,
                 "away_team": away_team.id,
                 "venue": FINAL_VENUE,
+                "stage": "FINAL",
+                "is_knockout": True,
             }
         )
 

@@ -155,6 +155,8 @@ class StatsBombOpenDataProvider(DataProvider):
             name=f"{first['competition']['competition_name']} {first['season']['season_name']}",
             country=first["competition"].get("country_name"),
             competition_type="international",
+            format="hybrid",
+            team_type="country",
             competition_tier=1.0,
         )
         teams: dict[str, TeamRecord] = {}
@@ -172,6 +174,7 @@ class StatsBombOpenDataProvider(DataProvider):
                     external_id=team_id,
                     name=raw_team[f"{side}_team_name"],
                     country=(raw_team.get("country") or {}).get("name"),
+                    team_type="country",
                 )
             matches.append(
                 MatchRecord(
@@ -185,6 +188,9 @@ class StatsBombOpenDataProvider(DataProvider):
                     home_xg=match.get("home_team", {}).get("home_team_xg"),
                     away_xg=match.get("away_team", {}).get("away_team_xg"),
                     venue=(match.get("stadium") or {}).get("name"),
+                    stage=match.get("competition_stage", {}).get("name"),
+                    is_knockout=(match.get("competition_stage", {}).get("name") or "").upper()
+                    not in {"", "GROUP STAGE", "REGULAR SEASON"},
                 )
             )
             max_minute = max((int(event.get("minute", 0)) for event in event_payload), default=90)

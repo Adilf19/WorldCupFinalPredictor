@@ -1,4 +1,4 @@
-# How Final Intelligence works
+# How Adil's Football Game Predictor works
 
 ## Runtime flow
 
@@ -26,23 +26,17 @@
 
 ## Owner authentication
 
-The only accepted owner identity is `OWNER_EMAIL`. Requesting a code for any
-other address returns the same generic response but sends nothing.
+The owner supplies one password. Only a salted PBKDF2-SHA256 hash is configured;
+the application never stores the password itself.
 
-- Codes use `secrets.randbelow`, expire after ten minutes, are capped at five
-  attempts, and are rate-limited to five requests per hour with a one-minute
-  cooldown.
-- The database stores a salted HMAC of the code, never the code itself.
-- Successful verification consumes the challenge and creates a random 12-hour
-  session. Only the SHA-256 session-token hash is stored.
+- Generate the hash interactively with `python -m scripts.hash_owner_password`.
+- Failed logins are recorded by request address. Three failures within a
+  rolling 15-minute window block further attempts from that address.
+- A successful login creates a random 12-hour session. Only the SHA-256
+  session-token hash is stored.
 - The browser receives an HttpOnly, SameSite=Strict cookie. Production must use
   HTTPS and `COOKIE_SECURE=true`.
 - State-changing owner requests reject untrusted browser origins.
-
-The email is not sent until SMTP is configured. For Gmail SMTP, use
-`smtp.gmail.com`, port `587`, TLS, and an app password rather than the Google
-account password. Keep all credentials only in `.env` or the deployment secret
-store.
 
 ## Fixture and live providers
 
@@ -72,7 +66,7 @@ uvicorn api.main:app --reload
 Open `http://127.0.0.1:8000`. For frontend hot reload, run `npm run dev` from
 `frontend/`; Vite proxies `/api` to FastAPI.
 
-Required owner/email environment values are documented in `.env.example`.
+Required owner-password environment values are documented in `.env.example`.
 
 ## Google Stitch
 

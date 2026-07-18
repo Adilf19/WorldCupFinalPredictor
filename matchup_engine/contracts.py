@@ -16,6 +16,8 @@ class PredictedLineupPlayer(PredictionContract):
 
     player_id: int
     player_name: str
+    photo_url: str | None = None
+    shirt_number: int | None = Field(default=None, ge=1, le=99)
     assigned_role: str
     primary_position: str | None = None
     secondary_position: str | None = None
@@ -24,6 +26,10 @@ class PredictedLineupPlayer(PredictionContract):
     weighted_appearances: float = Field(ge=0)
     weighted_starts: float = Field(ge=0)
     weighted_minutes: float = Field(ge=0)
+    club_form: float | None = Field(default=None, ge=0, le=1)
+    country_form: float | None = Field(default=None, ge=0, le=1)
+    blended_form: float | None = Field(default=None, ge=0, le=1)
+    form_coverage: float = Field(default=0, ge=0, le=1)
 
 
 class PredictedLineup(PredictionContract):

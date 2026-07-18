@@ -15,7 +15,22 @@ from data_collection.contracts import ProviderSnapshot
 from data_collection.ingestion import ingest_provider
 from data_collection.normalization import ProviderNormalizer, UnresolvedReferenceError
 from data_collection.providers import JsonFileProvider
+from data_collection.providers.football_data import competition_context
 from database.connection import engine
+
+
+class FootballDataContextTests(unittest.TestCase):
+    def test_league_is_club_regulation_context(self) -> None:
+        self.assertEqual(
+            competition_context({"name": "Premier League", "type": "LEAGUE"}),
+            ("league", "club"),
+        )
+
+    def test_world_cup_is_country_hybrid_context(self) -> None:
+        self.assertEqual(
+            competition_context({"name": "FIFA World Cup", "type": "CUP"}),
+            ("hybrid", "country"),
+        )
 
 
 def _snapshot_payload(suffix: str) -> dict[str, object]:

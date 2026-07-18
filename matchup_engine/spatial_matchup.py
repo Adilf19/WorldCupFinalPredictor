@@ -124,6 +124,85 @@ class SpatialMatchupPredictor:
                     similarity_evidence=similar,
                 )
             )
+        covered_away_ids = {
+            battle.away_player.player_id
+            for battle in battles
+            if battle.away_player is not None
+        }
+        for away_player in away_lineup.players:
+            away_profile = away_profiles.get(away_player.player_id)
+            if away_profile is None or away_player.player_id in covered_away_ids or not home_profiles:
+                continue
+            candidates = [
+                (
+                    self._overlap(profile.grid.cells, self._rotate(away_profile.grid.cells)),
+                    home_player,
+                    profile,
+                )
+                for home_player in home_lineup.players
+                if (profile := home_profiles.get(home_player.player_id)) is not None
+            ]
+            overlap, home_player, home_profile = max(candidates, key=lambda item: item[0])
+            away_density = self._rotate(away_profile.grid.cells)
+            away_impact = self._rotate(away_profile.impact)
+            advantage = self._advantage(home_profile, away_density, away_impact)
+            confidence = min(home_profile.confidence, away_profile.confidence) * min(1.0, overlap * 2.5)
+            direct = self.h2h.score(
+                home_player_id=home_player.player_id,
+                away_player_id=away_player.player_id,
+                as_of=home_lineup.as_of,
+            )
+            similar = (
+                self.similarity.score(
+                    home_player_id=home_player.player_id,
+                    away_player_id=away_player.player_id,
+                    as_of=home_lineup.as_of,
+                )
+                if direct.confidence < self.config.h2h_similarity_fallback_confidence
+                else None
+            )
+            advantage, confidence = self._combine_evidence(
+                spatial_advantage=advantage,
+                spatial_confidence=confidence,
+                direct=direct,
+                similar=similar,
+            )
+            sources = ["action_heatmap_overlap", "event_impact"]
+            if direct.home_advantage is not None:
+                sources.extend(direct.dimensions)
+            if similar is not None and similar.home_advantage is not None:
+                sources.extend(similar.dimensions)
+            battles.append(
+                BattlePrediction(
+                    label=f"{home_player.player_name} vs {away_player.player_name}",
+                    home_role=home_player.assigned_role,
+                    away_role=away_player.assigned_role,
+                    home_player=home_player,
+                    away_player=away_player,
+                    home_advantage=advantage,
+                    confidence=confidence,
+                    weight=max(0.1, overlap),
+                    evidence_dimensions=tuple(dict.fromkeys(sources)),
+                    explanation=(
+                        f"{home_player.player_name} has the highest spatial overlap "
+                        f"with {away_player.player_name} ({overlap:.0%}). "
+                        f"{direct.explanation}"
+                    ),
+                    method="spatial_h2h_similarity",
+                    spatial_overlap=overlap,
+                    home_heatmap=home_profile.grid,
+                    away_heatmap=HeatmapGrid(
+                        columns=away_profile.grid.columns,
+                        rows=away_profile.grid.rows,
+                        cells=away_density,
+                        sample_events=away_profile.grid.sample_events,
+                        sample_matches=away_profile.grid.sample_matches,
+                        orientation="rotated_into_home_physical_frame",
+                    ),
+                    direct_h2h=direct,
+                    similarity_evidence=similar,
+                )
+            )
         if not battles:
             return None
         denominator = sum(b.weight * b.confidence for b in battles)
@@ -159,10 +238,21 @@ class SpatialMatchupPredictor:
     def _profile(
         self, player: PredictedLineupPlayer, team_id: int, as_of: date
     ) -> SpatialProfile | None:
-        recent_match_ids = select(Match.id).where(
-            Match.date < as_of,
-            ((Match.home_team == team_id) | (Match.away_team == team_id)),
-        ).order_by(Match.date.desc()).limit(self.config.spatial_lookback_matches)
+        # Limit to the player's most recent *event-bearing* matches. Match-only
+        # history must not push older, richer spatial evidence out of the
+        # lookback window.
+        recent_match_ids = (
+            select(SpatialEvent.match_id)
+            .join(Match, SpatialEvent.match_id == Match.id)
+            .where(
+                Match.date < as_of,
+                SpatialEvent.player_id == player.player_id,
+                SpatialEvent.team_id == team_id,
+            )
+            .group_by(SpatialEvent.match_id, Match.date)
+            .order_by(Match.date.desc())
+            .limit(self.config.spatial_lookback_matches)
+        )
         rows = self.session.execute(
             select(SpatialEvent, Match.date)
             .join(Match, SpatialEvent.match_id == Match.id)
