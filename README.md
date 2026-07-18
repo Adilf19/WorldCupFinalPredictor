@@ -263,14 +263,18 @@ adapter implemented.
 
 ## Roadmap
 
-1. Finalize DB schema (`database/schema.sql`) + provider-independent
-   ORM models.
-2. Implement one real Data Collection provider end-to-end (proves the
-   ingest contract).
-3. Feature Engineering v1 (team-level only) → simple baseline model.
-4. Matchup Engine v1 (Direct H2H only; Similarity Engine follows once
-   clustering data is available).
-5. Prediction Model + Monte Carlo Simulation wired together.
-6. API v1 exposing a single fixture's prediction end-to-end.
-7. Explainability layer (SHAP → readable contributors).
-8. Frontend v1 (basic prediction display, no live features yet).
+1. Build proper SQLAlchemy ORM models matching the PostgreSQL schema.
+2. Create database CRUD utilities.
+3. Build seed scripts for Spain and Argentina.
+4. Create provider abstraction.
+5. Implement first provider.
+6. Normalize provider data into ORM models.
+7. Create feature engineering pipeline.
+8. Build lineup predictor.
+9. Build H2H (head to head matchup) engine.
+10. Build player similarity engine.
+11. Build positional matchup engine.
+12. Train baseline LightGBM model.
+13. Add Monte Carlo simulation.
+14. Build FastAPI endpoints.
+15. Build React frontend.
