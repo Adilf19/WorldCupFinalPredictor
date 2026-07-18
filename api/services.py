@@ -202,7 +202,12 @@ class DashboardService:
             mode="awaiting_confirmation" if after_kickoff else "expected",
             provider_status=(
                 "Kickoff reached; awaiting a confirmed lineup feed"
-                if after_kickoff else "Model-predicted lineup"
+                if after_kickoff
+                else (
+                    "FIFA-published possible XI, evaluated by the matchup model"
+                    if fixture.external_id == "fifa-world-cup-2026-match-103-bronze-final"
+                    else "Model-predicted lineup"
+                )
             ),
             home=[player.model_dump(mode="json") for player in matchups.home_lineup.players],
             away=[player.model_dump(mode="json") for player in matchups.away_lineup.players],

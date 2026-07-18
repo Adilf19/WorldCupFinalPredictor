@@ -45,6 +45,8 @@ class InternationalResultsProvider(DataProvider):
             row for row in rows
             if since <= date.fromisoformat(row["date"]) < self.as_of
             and {row["home_team"], row["away_team"]} & self.team_names
+            and row["home_score"].isdigit()
+            and row["away_score"].isdigit()
         ]
         competitions: dict[str, CompetitionRecord] = {}
         teams: dict[str, TeamRecord] = {}

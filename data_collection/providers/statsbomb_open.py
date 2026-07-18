@@ -16,6 +16,7 @@ from data_collection.contracts import (
     PlayerRecord,
     ProviderSnapshot,
     SpatialEventRecord,
+    TeamMembershipRecord,
     TeamRecord,
 )
 from data_collection.providers.base import DataProvider
@@ -161,9 +162,13 @@ class StatsBombOpenDataProvider(DataProvider):
         )
         teams: dict[str, TeamRecord] = {}
         players: dict[str, PlayerRecord] = {}
+        memberships: dict[tuple[str, str], TeamMembershipRecord] = {}
         matches: list[MatchRecord] = []
         lineups: list[LineupRecord] = []
         spatial: list[SpatialEventRecord] = []
+        snapshot_dates = [date.fromisoformat(match["match_date"]) for match, _, _ in payloads]
+        membership_start = min(snapshot_dates)
+        membership_end = max(snapshot_dates)
 
         for match, lineup_payload, event_payload in payloads:
             match_id = str(match["match_id"])
@@ -211,6 +216,12 @@ class StatsBombOpenDataProvider(DataProvider):
                         name=display_name,
                         nationality=(raw_player.get("country") or {}).get("name"),
                         primary_position=primary,
+                    )
+                    memberships[(team_id, player_id)] = TeamMembershipRecord(
+                        team_external_id=team_id,
+                        player_external_id=player_id,
+                        start_date=membership_start,
+                        end_date=membership_end,
                     )
                     if positions:
                         first_position = positions[0]
@@ -263,6 +274,7 @@ class StatsBombOpenDataProvider(DataProvider):
             competitions=(competition,),
             teams=tuple(teams.values()),
             players=tuple(players.values()),
+            team_memberships=tuple(memberships.values()),
             matches=tuple(matches),
             lineups=tuple(lineups),
             spatial_events=tuple(spatial),

@@ -186,6 +186,32 @@ class LineupPredictor:
                 )
             )
             del available[chosen.player.id]
+        # A real XI does not have to fit the configured display formation.
+        # Preserve every evidence-selected player even when no unused template
+        # role remains compatible; spatial matching is formation-agnostic.
+        for chosen in sorted(available.values(), key=self._selection_priority, reverse=True):
+            form = chosen.context_form.blended_form if chosen.context_form else None
+            score = chosen.evidence_score if form is None else 0.75 * chosen.evidence_score + 0.25 * form
+            selected.append(
+                PredictedLineupPlayer(
+                    player_id=chosen.player.id,
+                    player_name=chosen.player.name,
+                    photo_url=chosen.player.photo_url,
+                    shirt_number=max(chosen.shirt_numbers, key=chosen.shirt_numbers.get) if chosen.shirt_numbers else None,
+                    assigned_role=chosen.player.primary_position or "FLEX",
+                    primary_position=chosen.player.primary_position,
+                    secondary_position=chosen.player.secondary_position,
+                    selection_score=round(score, 6),
+                    confidence=min(1.0, chosen.appearances / self.config.full_evidence_appearances),
+                    weighted_appearances=round(chosen.appearances, 6),
+                    weighted_starts=round(chosen.starts, 6),
+                    weighted_minutes=round(chosen.minutes, 6),
+                    club_form=chosen.context_form.club_form if chosen.context_form else None,
+                    country_form=chosen.context_form.country_form if chosen.context_form else None,
+                    blended_form=chosen.context_form.blended_form if chosen.context_form else None,
+                    form_coverage=chosen.context_form.coverage if chosen.context_form else 0,
+                )
+            )
         return selected
 
     @staticmethod
