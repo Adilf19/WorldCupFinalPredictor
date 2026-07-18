@@ -11,6 +11,7 @@ from database.crud import (
     CompetitionRepository,
     LineupRepository,
     MatchRepository,
+    MatchupEventRepository,
     PlayerRepository,
     TeamPlayerRepository,
     TeamRepository,
@@ -18,8 +19,10 @@ from database.crud import (
 from database.models import Player
 from matchup_engine import MatchupPredictionPipeline, PredictorConfig
 from matchup_engine.matchup_scorer import AttributeMatchupScorer
+from matchup_engine.h2h_engine import DirectH2HEngine
 from matchup_engine.positions import position_compatibility
 from matchup_engine.spatial_matchup import SpatialMatchupPredictor
+from matchup_engine.similarity_engine import PlayerFingerprint, PlayerSimilarityEngine
 
 
 class PositionCompatibilityTests(unittest.TestCase):
@@ -77,6 +80,63 @@ class SpatialMathTests(unittest.TestCase):
             SpatialMatchupPredictor._overlap(home, away),
             SpatialMatchupPredictor._overlap(away, home),
         )
+
+
+class SimilarityMathTests(unittest.TestCase):
+    def test_role_compatible_fingerprint_scores_higher(self) -> None:
+        values = {"mean_x": 0.5, "mean_y": 0.4, "pass_share": 0.7}
+        target = PlayerFingerprint(Player(id=1, name="Target", primary_position="MF"), values, 100)
+        midfielder = PlayerFingerprint(Player(id=2, name="Mid", primary_position="LCM"), values, 100)
+        goalkeeper = PlayerFingerprint(Player(id=3, name="Keeper", primary_position="GK"), values, 100)
+        self.assertGreater(
+            PlayerSimilarityEngine._similarity(target, midfielder),
+            PlayerSimilarityEngine._similarity(target, goalkeeper),
+        )
+
+
+class DirectH2HPostgresTests(unittest.TestCase):
+    def test_provider_linked_duels_are_scored_before_cutoff(self) -> None:
+        suffix = uuid4().hex
+        cutoff = date(2026, 7, 19)
+        with engine.connect() as connection:
+            transaction = connection.begin()
+            session = Session(bind=connection, expire_on_commit=False)
+            try:
+                competition = CompetitionRepository(session).create({"name": f"H2H {suffix}"})
+                home_team = TeamRepository(session).create({"name": f"H2H Home {suffix}"})
+                away_team = TeamRepository(session).create({"name": f"H2H Away {suffix}"})
+                home = PlayerRepository(session).create({"name": f"H2H Attacker {suffix}"})
+                away = PlayerRepository(session).create({"name": f"H2H Defender {suffix}"})
+                match = MatchRepository(session).create(
+                    {
+                        "competition_id": competition.id,
+                        "date": cutoff - timedelta(days=30),
+                        "home_team": home_team.id,
+                        "away_team": away_team.id,
+                    }
+                )
+                MatchupEventRepository(session).create(
+                    {
+                        "match_id": match.id,
+                        "attacker_id": home.id,
+                        "defender_id": away.id,
+                        "minutes_together": 90,
+                        "attacking_duels_won": 8,
+                        "attacking_duels_lost": 2,
+                        "defensive_duels_won": 2,
+                        "defensive_duels_lost": 8,
+                    }
+                )
+                result = DirectH2HEngine(session).score(
+                    home_player_id=home.id, away_player_id=away.id, as_of=cutoff
+                )
+                self.assertEqual(result.source, "direct_linked_duels")
+                self.assertEqual(result.sample_matches, 1)
+                self.assertGreater(float(result.home_advantage), 0)
+                self.assertGreater(result.confidence, 0)
+            finally:
+                session.close()
+                transaction.rollback()
 
 
 class MatchupPipelinePostgresTests(unittest.TestCase):

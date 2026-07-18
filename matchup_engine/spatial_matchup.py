@@ -16,20 +16,9 @@ from matchup_engine.contracts import (
     PredictedLineup,
     PredictedLineupPlayer,
 )
-
-_ACTION_VALUE = {
-    "Shot": 1.0,
-    "Dribble": 0.85,
-    "Carry": 0.72,
-    "Pass": 0.68,
-    "Ball Recovery": 0.72,
-    "Interception": 0.82,
-    "Duel": 0.76,
-    "Clearance": 0.62,
-    "Block": 0.72,
-    "Pressure": 0.55,
-}
-_FAILED_OUTCOMES = {"Incomplete", "Out", "Blocked", "Lost", "Lost In Play", "No Touch"}
+from matchup_engine.event_evidence import action_quality
+from matchup_engine.h2h_engine import DirectH2HEngine
+from matchup_engine.similarity_engine import PlayerSimilarityEngine
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,6 +34,8 @@ class SpatialMatchupPredictor:
     def __init__(self, session: Session, *, config: PredictorConfig | None = None) -> None:
         self.session = session
         self.config = config or PredictorConfig()
+        self.h2h = DirectH2HEngine(session, config=self.config)
+        self.similarity = PlayerSimilarityEngine(session, config=self.config)
 
     def predict(
         self, *, home_lineup: PredictedLineup, away_lineup: PredictedLineup
@@ -77,6 +68,31 @@ class SpatialMatchupPredictor:
             away_impact = self._rotate(away_profile.impact)
             advantage = self._advantage(home_profile, away_density, away_impact)
             confidence = min(home_profile.confidence, away_profile.confidence) * min(1.0, overlap * 2.5)
+            direct = self.h2h.score(
+                home_player_id=home_player.player_id,
+                away_player_id=away_player.player_id,
+                as_of=home_lineup.as_of,
+            )
+            similar = (
+                self.similarity.score(
+                    home_player_id=home_player.player_id,
+                    away_player_id=away_player.player_id,
+                    as_of=home_lineup.as_of,
+                )
+                if direct.confidence < self.config.h2h_similarity_fallback_confidence
+                else None
+            )
+            advantage, confidence = self._combine_evidence(
+                spatial_advantage=advantage,
+                spatial_confidence=confidence,
+                direct=direct,
+                similar=similar,
+            )
+            sources = ["action_heatmap_overlap", "event_impact"]
+            if direct.home_advantage is not None:
+                sources.extend(direct.dimensions)
+            if similar is not None and similar.home_advantage is not None:
+                sources.extend(similar.dimensions)
             battles.append(
                 BattlePrediction(
                     label=f"{home_player.player_name} vs {away_player.player_name}",
@@ -87,12 +103,13 @@ class SpatialMatchupPredictor:
                     home_advantage=advantage,
                     confidence=confidence,
                     weight=max(0.1, overlap),
-                    evidence_dimensions=("action_heatmap_overlap", "event_impact"),
+                    evidence_dimensions=tuple(dict.fromkeys(sources)),
                     explanation=(
                         f"{away_player.player_name} has the highest spatial overlap "
-                        f"with {home_player.player_name} ({overlap:.0%})."
+                        f"with {home_player.player_name} ({overlap:.0%}). "
+                        f"{direct.explanation}"
                     ),
-                    method="spatial_action_heatmap",
+                    method="spatial_h2h_similarity",
                     spatial_overlap=overlap,
                     home_heatmap=home_profile.grid,
                     away_heatmap=HeatmapGrid(
@@ -103,6 +120,8 @@ class SpatialMatchupPredictor:
                         sample_matches=away_profile.grid.sample_matches,
                         orientation="rotated_into_home_physical_frame",
                     ),
+                    direct_h2h=direct,
+                    similarity_evidence=similar,
                 )
             )
         if not battles:
@@ -118,8 +137,8 @@ class SpatialMatchupPredictor:
             warnings.append("Spatial matchups exclude predicted players without enough event locations.")
         warnings.append("Heatmaps represent on-ball actions, not continuous off-ball occupation.")
         return MatchupPrediction(
-            prediction_version="spatial_matchups_v1",
-            matchup_method="spatial_action_heatmap",
+            prediction_version="spatial_hybrid_matchups_v1",
+            matchup_method="spatial_h2h_similarity",
             as_of=home_lineup.as_of,
             home_lineup=home_lineup,
             away_lineup=away_lineup,
@@ -161,11 +180,7 @@ class SpatialMatchupPredictor:
         for event, match_date in rows:
             age = max(0, (as_of - match_date).days)
             recency = exp(-log(2) * age / self.config.spatial_recency_half_life_days)
-            quality = _ACTION_VALUE.get(event.event_type, 0.5)
-            if event.outcome in _FAILED_OUTCOMES:
-                quality *= 0.25
-            if event.under_pressure:
-                quality *= 1.05
+            quality = action_quality(event)
             column = min(self.config.spatial_grid_columns - 1, int(event.x * self.config.spatial_grid_columns))
             row = min(self.config.spatial_grid_rows - 1, int(event.y * self.config.spatial_grid_rows))
             self._spread(density, impact_sum, column, row, recency, quality)
@@ -227,3 +242,18 @@ class SpatialMatchupPredictor:
         home_score = sum(w * value for w, value in zip(contested, home.impact)) / total
         away_score = sum(w * value for w, value in zip(contested, away_impact)) / total
         return max(-1.0, min(1.0, (home_score - away_score) / max(0.1, home_score + away_score)))
+
+    @staticmethod
+    def _combine_evidence(*, spatial_advantage: float, spatial_confidence: float, direct, similar) -> tuple[float, float]:
+        components = [(spatial_advantage, spatial_confidence, 1.0)]
+        if direct.home_advantage is not None and direct.confidence > 0:
+            components.append((direct.home_advantage, direct.confidence, 1.5))
+        if similar is not None and similar.home_advantage is not None and similar.confidence > 0:
+            components.append((similar.home_advantage, similar.confidence, 0.8))
+        denominator = sum(confidence * source_weight for _, confidence, source_weight in components)
+        combined = sum(
+            score * confidence * source_weight
+            for score, confidence, source_weight in components
+        ) / denominator
+        confidence = min(1.0, denominator / sum(source_weight for _, _, source_weight in components))
+        return combined, confidence

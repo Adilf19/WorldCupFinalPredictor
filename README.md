@@ -150,14 +150,16 @@ individual on-pitch battle (RW↔LB, ST↔CB, CAM↔DM, GK↔ST, etc.):
 1. **Lineup Predictor** — implemented expected-XI selection from active squads,
    historical starts, minutes, recency, and positional compatibility. Every
    selection includes evidence coverage and confidence.
-2. **Direct H2H Engine** — pulls prior meetings between the two
-   specific players (minutes, goals, xG, duel success, average rating,
-   team result), recency-weighted.
-3. **Similarity Engine** — when direct H2H is sparse (the common case),
-   clusters players by pace, strength, height, defensive aggression,
-   pressing, passing, creativity, crossing, dribbling, finishing,
-   positioning, progressive passing/carrying — and compares performance
-   against *similar* opponents instead.
+2. **Direct H2H Engine** — implemented recency-weighted evidence from
+   provider-linked player-v-player aggregates when available. Otherwise it
+   uses prior matches where the exact players appeared for opposing teams,
+   their shared-minutes proxy, and observed action quality, explicitly avoiding
+   the false claim that every co-present action was a direct duel.
+3. **Similarity Engine** — implemented sparse-H2H fallback. It builds
+   role-aware fingerprints from player attributes when available plus spatial
+   centroid, spread, and action-type distribution. It searches only players an
+   opponent has actually faced, transfers their shared-match evidence with a
+   similarity discount, and caps confidence below direct evidence.
 4. **Spatial Matchup Score** — the primary engine builds recency-weighted action
    heatmaps on a configurable unit-pitch grid. It rotates each opposition map
    into the home team's physical frame and pairs every covered predicted player
@@ -329,11 +331,11 @@ python -m scripts.predict_matchups \
 6. ✅ Normalize provider data into ORM models.
 7. ✅ Create team feature engineering pipeline.
 8. ✅ Build lineup predictor.
-9. Build H2H (head to head matchup) engine.
-10. Build player similarity engine.
+9. ✅ Build H2H (head to head matchup) engine.
+10. ✅ Build player similarity engine.
 11. ✅ Build baseline positional matchup predictor.
 12. ✅ Build action-heatmap matchup predictor and open-data ingestion.
 13. Train baseline LightGBM model.
-13. Add Monte Carlo simulation.
-14. Build FastAPI endpoints.
-15. Build React frontend.
+14. Add Monte Carlo simulation.
+15. Build FastAPI endpoints.
+16. Build React frontend.

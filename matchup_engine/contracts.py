@@ -58,6 +58,19 @@ class HeatmapGrid(PredictionContract):
     orientation: str = "attacking_left_to_right"
 
 
+class MatchupEvidenceSummary(PredictionContract):
+    """An auditable component contributing to one combined battle score."""
+
+    source: str
+    home_advantage: float | None = Field(default=None, ge=-1, le=1)
+    confidence: float = Field(ge=0, le=1)
+    sample_matches: int = Field(ge=0)
+    sample_minutes: float = Field(ge=0)
+    analogous_players: tuple[str, ...] = ()
+    dimensions: tuple[str, ...] = ()
+    explanation: str
+
+
 class BattlePrediction(PredictionContract):
     """One directional on-pitch player battle from the home perspective."""
 
@@ -76,6 +89,8 @@ class BattlePrediction(PredictionContract):
     spatial_overlap: float | None = Field(default=None, ge=0, le=1)
     home_heatmap: HeatmapGrid | None = None
     away_heatmap: HeatmapGrid | None = None
+    direct_h2h: MatchupEvidenceSummary | None = None
+    similarity_evidence: MatchupEvidenceSummary | None = None
 
 
 class MatchupPrediction(PredictionContract):

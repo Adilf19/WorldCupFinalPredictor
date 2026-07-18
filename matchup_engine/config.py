@@ -32,6 +32,12 @@ class PredictorConfig(BaseModel):
     spatial_full_evidence_events: int = Field(default=80, ge=1)
     spatial_minimum_events: int = Field(default=8, ge=1)
     spatial_minimum_lineup_coverage: float = Field(default=0.35, ge=0, le=1)
+    h2h_recency_half_life_days: float = Field(default=730.0, gt=0)
+    h2h_full_evidence_matches: int = Field(default=4, ge=1)
+    h2h_similarity_fallback_confidence: float = Field(default=0.5, ge=0, le=1)
+    similarity_neighbors: int = Field(default=5, ge=1, le=20)
+    similarity_minimum_events: int = Field(default=20, ge=1)
+    similarity_minimum_score: float = Field(default=0.35, ge=0, le=1)
 
     @model_validator(mode="after")
     def validate_formation(self) -> "PredictorConfig":
