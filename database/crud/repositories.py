@@ -7,18 +7,22 @@ and provide a natural home for domain-specific queries as the platform grows.
 from database.crud.base import Repository
 from database.models import (
     Competition,
+    CompetitionProviderReference,
     Lineup,
     Manager,
     ManagerHistory,
     Match,
+    MatchProviderReference,
     MatchupEvent,
     Player,
     PlayerEmbedding,
     PlayerMatchStat,
+    PlayerProviderReference,
     Prediction,
     SimulationResult,
     Team,
     TeamPlayer,
+    TeamProviderReference,
 )
 
 
@@ -72,3 +76,21 @@ class PredictionRepository(Repository[Prediction]):
 
 class SimulationResultRepository(Repository[SimulationResult]):
     model = SimulationResult
+
+
+class CompetitionProviderReferenceRepository(
+    Repository[CompetitionProviderReference]
+):
+    model = CompetitionProviderReference
+
+
+class TeamProviderReferenceRepository(Repository[TeamProviderReference]):
+    model = TeamProviderReference
+
+
+class PlayerProviderReferenceRepository(Repository[PlayerProviderReference]):
+    model = PlayerProviderReference
+
+
+class MatchProviderReferenceRepository(Repository[MatchProviderReference]):
+    model = MatchProviderReference

@@ -3,7 +3,18 @@
 from datetime import date, datetime
 from typing import Any
 
-from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Index, Integer, String, func
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -23,6 +34,9 @@ class Competition(Base):
     created_at: Mapped[datetime | None] = mapped_column(DateTime, server_default=func.current_timestamp())
 
     matches: Mapped[list["Match"]] = relationship(back_populates="competition")
+    provider_references: Mapped[list["CompetitionProviderReference"]] = relationship(
+        back_populates="competition", cascade="all, delete-orphan"
+    )
 
 
 class Team(Base):
@@ -44,6 +58,9 @@ class Team(Base):
     away_matches: Mapped[list["Match"]] = relationship(foreign_keys="Match.away_team", back_populates="away_team_rel")
     lineups: Mapped[list["Lineup"]] = relationship(back_populates="team")
     manager_history: Mapped[list["ManagerHistory"]] = relationship(back_populates="team")
+    provider_references: Mapped[list["TeamProviderReference"]] = relationship(
+        back_populates="team", cascade="all, delete-orphan"
+    )
 
 
 class Player(Base):
@@ -74,6 +91,9 @@ class Player(Base):
     embeddings: Mapped[list["PlayerEmbedding"]] = relationship(back_populates="player")
     attacking_events: Mapped[list["MatchupEvent"]] = relationship(foreign_keys="MatchupEvent.attacker_id", back_populates="attacker")
     defending_events: Mapped[list["MatchupEvent"]] = relationship(foreign_keys="MatchupEvent.defender_id", back_populates="defender")
+    provider_references: Mapped[list["PlayerProviderReference"]] = relationship(
+        back_populates="player", cascade="all, delete-orphan"
+    )
 
 
 class TeamPlayer(Base):
@@ -122,12 +142,18 @@ class Match(Base):
     player_stats: Mapped[list["PlayerMatchStat"]] = relationship(back_populates="match")
     matchup_events: Mapped[list["MatchupEvent"]] = relationship(back_populates="match")
     predictions: Mapped[list["Prediction"]] = relationship(back_populates="match")
+    provider_references: Mapped[list["MatchProviderReference"]] = relationship(
+        back_populates="match", cascade="all, delete-orphan"
+    )
 
 
 class Lineup(Base):
     """A player's selection and role in one match."""
 
     __tablename__ = "lineups"
+    __table_args__ = (
+        UniqueConstraint("match_id", "player_id", name="uq_lineup_match_player"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     match_id: Mapped[int | None] = mapped_column(ForeignKey("matches.id"))
@@ -147,7 +173,12 @@ class PlayerMatchStat(Base):
     """A player's aggregate performance statistics in one match."""
 
     __tablename__ = "player_match_stats"
-    __table_args__ = (Index("idx_player_stats_player", "player_id"),)
+    __table_args__ = (
+        Index("idx_player_stats_player", "player_id"),
+        UniqueConstraint(
+            "match_id", "player_id", name="uq_player_stats_match_player"
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     match_id: Mapped[int | None] = mapped_column(ForeignKey("matches.id"))
@@ -183,6 +214,12 @@ class MatchupEvent(Base):
     __table_args__ = (
         Index("idx_matchup_attacker", "attacker_id"),
         Index("idx_matchup_defender", "defender_id"),
+        UniqueConstraint(
+            "match_id",
+            "attacker_id",
+            "defender_id",
+            name="uq_matchup_match_attacker_defender",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -287,3 +324,119 @@ class SimulationResult(Base):
     probability: Mapped[float | None] = mapped_column(Float)
 
     prediction: Mapped[Prediction | None] = relationship(back_populates="simulation_results")
+
+
+class CompetitionProviderReference(Base):
+    """Map a provider competition ID to its canonical competition."""
+
+    __tablename__ = "competition_provider_references"
+    __table_args__ = (
+        UniqueConstraint(
+            "provider", "external_id", name="uq_competition_provider_external"
+        ),
+        UniqueConstraint(
+            "provider", "competition_id", name="uq_competition_provider_entity"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    provider: Mapped[str] = mapped_column(String(50))
+    external_id: Mapped[str] = mapped_column(String(255))
+    competition_id: Mapped[int] = mapped_column(
+        ForeignKey("competitions.id", ondelete="CASCADE"), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.current_timestamp()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        server_default=func.current_timestamp(),
+        onupdate=func.current_timestamp(),
+    )
+
+    competition: Mapped[Competition] = relationship(
+        back_populates="provider_references"
+    )
+
+
+class TeamProviderReference(Base):
+    """Map a provider team ID to its canonical team."""
+
+    __tablename__ = "team_provider_references"
+    __table_args__ = (
+        UniqueConstraint("provider", "external_id", name="uq_team_provider_external"),
+        UniqueConstraint("provider", "team_id", name="uq_team_provider_entity"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    provider: Mapped[str] = mapped_column(String(50))
+    external_id: Mapped[str] = mapped_column(String(255))
+    team_id: Mapped[int] = mapped_column(
+        ForeignKey("teams.id", ondelete="CASCADE"), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.current_timestamp()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        server_default=func.current_timestamp(),
+        onupdate=func.current_timestamp(),
+    )
+
+    team: Mapped[Team] = relationship(back_populates="provider_references")
+
+
+class PlayerProviderReference(Base):
+    """Map a provider player ID to its canonical player."""
+
+    __tablename__ = "player_provider_references"
+    __table_args__ = (
+        UniqueConstraint(
+            "provider", "external_id", name="uq_player_provider_external"
+        ),
+        UniqueConstraint("provider", "player_id", name="uq_player_provider_entity"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    provider: Mapped[str] = mapped_column(String(50))
+    external_id: Mapped[str] = mapped_column(String(255))
+    player_id: Mapped[int] = mapped_column(
+        ForeignKey("players.id", ondelete="CASCADE"), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.current_timestamp()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        server_default=func.current_timestamp(),
+        onupdate=func.current_timestamp(),
+    )
+
+    player: Mapped[Player] = relationship(back_populates="provider_references")
+
+
+class MatchProviderReference(Base):
+    """Map a provider match ID to its canonical match."""
+
+    __tablename__ = "match_provider_references"
+    __table_args__ = (
+        UniqueConstraint("provider", "external_id", name="uq_match_provider_external"),
+        UniqueConstraint("provider", "match_id", name="uq_match_provider_entity"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    provider: Mapped[str] = mapped_column(String(50))
+    external_id: Mapped[str] = mapped_column(String(255))
+    match_id: Mapped[int] = mapped_column(
+        ForeignKey("matches.id", ondelete="CASCADE"), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.current_timestamp()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        server_default=func.current_timestamp(),
+        onupdate=func.current_timestamp(),
+    )
+
+    match: Mapped[Match] = relationship(back_populates="provider_references")

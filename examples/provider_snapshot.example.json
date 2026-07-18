@@ -1,0 +1,15 @@
+{
+  "competitions": [{"external_id": "demo-competition-1", "name": "Demonstration Cup", "country": "International", "competition_type": "international", "competition_tier": 0.5}],
+  "teams": [
+    {"external_id": "demo-team-home", "name": "Demonstration Home", "country": "Example"},
+    {"external_id": "demo-team-away", "name": "Demonstration Away", "country": "Example"}
+  ],
+  "players": [
+    {"external_id": "demo-player-home", "name": "Home Forward", "nationality": "Example", "primary_position": "FW"},
+    {"external_id": "demo-player-away", "name": "Away Defender", "nationality": "Example", "primary_position": "DF"}
+  ],
+  "matches": [{"external_id": "demo-match-1", "competition_external_id": "demo-competition-1", "home_team_external_id": "demo-team-home", "away_team_external_id": "demo-team-away", "date": "2026-01-01", "home_goals": 1, "away_goals": 0, "home_xg": 1.4, "away_xg": 0.7}],
+  "lineups": [{"match_external_id": "demo-match-1", "player_external_id": "demo-player-home", "team_external_id": "demo-team-home", "position": "ST", "starter": true, "minutes_played": 90}],
+  "player_match_stats": [{"match_external_id": "demo-match-1", "player_external_id": "demo-player-home", "minutes": 90, "goals": 1, "xg": 0.8, "rating": 8.1}],
+  "matchup_events": [{"match_external_id": "demo-match-1", "attacker_external_id": "demo-player-home", "defender_external_id": "demo-player-away", "minutes_together": 75, "dribble_attempts": 4, "dribbles_completed": 2, "attacking_duels_won": 3, "attacking_duels_lost": 2}]
+}

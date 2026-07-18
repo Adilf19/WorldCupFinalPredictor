@@ -4,9 +4,10 @@ A modular, explainable football analytics engine. The initial target is
 **Spain vs Argentina — 2026 FIFA World Cup Final**, but the architecture is
 built to score *any* club or international fixture without redesign.
 
-> **Status:** PostgreSQL schema, SQLAlchemy ORM, CRUD repositories, and the
-> idempotent Spain/Argentina final seed are implemented. Data-provider and
-> modelling stages remain on the roadmap.
+> **Status:** PostgreSQL schema, SQLAlchemy ORM, CRUD repositories, migrations,
+> the Spain/Argentina seed, provider contracts, JSON adapter, and transactional
+> provider-to-ORM normalization are implemented. Feature engineering and model
+> stages remain on the roadmap.
 
 ---
 
@@ -80,12 +81,14 @@ wc-prediction-platform/
 ├── README.md
 ├── requirements.txt
 ├── data_collection/
-│   ├── providers/          # one adapter per data source (FotMob, FBref, ...)
-│   │   └── base_provider.py
-│   └── ingest.py           # orchestrates provider → normalized records
+│   ├── contracts.py        # strict provider-neutral Pydantic records
+│   ├── providers/          # adapter interface + concrete providers
+│   ├── ingestion.py        # provider I/O → transactional normalization
+│   └── normalization.py    # external IDs → canonical ORM entities
 ├── database/
-│   ├── schema.sql          # provider-independent relational schema
-│   └── models.py           # ORM models
+│   ├── crud/               # typed transaction-neutral repositories
+│   ├── migrations/         # Alembic migrations after schema v1
+│   └── models.py           # typed ORM models
 ├── feature_engineering/
 │   ├── team_features.py    # form, trends, Elo, chemistry, recency weighting
 │   ├── player_features.py  # per-player club/international/WC splits
@@ -115,10 +118,11 @@ wc-prediction-platform/
 ### 1. Data Collection
 Adapter pattern: each provider (FotMob, FBref, Understat, StatsBomb,
 Transfermarkt, Sofascore, FIFA, Opta-future) implements a common
-`BaseProvider` interface (`fetch_matches`, `fetch_players`,
-`fetch_lineups`, `fetch_events`). `ingest.py` normalizes whatever a
-provider returns into the shared schema before it ever touches the
-database — so the DB never needs to know which vendor a stat came from.
+`DataProvider` interface. Adapters return strict Pydantic records and never
+import ORM models. The ingestion layer resolves provider external IDs to
+canonical database entities, then writes the entire snapshot in one
+caller-owned transaction. A validated JSON adapter is included for licensed
+exports, fixtures, and deterministic integration testing.
 
 ### 2. Database
 Relational PostgreSQL schema (`schema.sql`) mapped by fully typed SQLAlchemy
@@ -255,14 +259,27 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Set `DATABASE_URL` in `.env`, load `schema.sql`, then seed the confirmed
-26-player squads and the 19 July final fixture. The seed is safe to rerun.
+Set `DATABASE_URL` in `.env`, load the baseline `schema.sql`, and apply the
+migrations. Then seed the confirmed 26-player squads and the 19 July final
+fixture. The seed is safe to rerun.
 
 ```bash
+alembic upgrade head
 python test_database.py
 python -m scripts.seed_world_cup_final
 python -m unittest discover -v
 ```
+
+Provider-neutral JSON exports can be validated and ingested with:
+
+```bash
+python -m scripts.ingest_provider_json \
+  examples/provider_snapshot.example.json \
+  --provider demo_json
+```
+
+Provider I/O finishes before ORM writes begin. Re-running the same provider IDs
+updates revised match data instead of duplicating canonical records.
 
 ---
 
@@ -271,9 +288,9 @@ python -m unittest discover -v
 1. ✅ Build proper SQLAlchemy ORM models matching the PostgreSQL schema.
 2. ✅ Create database CRUD utilities.
 3. ✅ Build seed scripts for Spain and Argentina.
-4. Create provider abstraction.
-5. Implement first provider.
-6. Normalize provider data into ORM models.
+4. ✅ Create provider abstraction.
+5. ✅ Implement first provider (validated JSON adapter).
+6. ✅ Normalize provider data into ORM models.
 7. Create feature engineering pipeline.
 8. Build lineup predictor.
 9. Build H2H (head to head matchup) engine.
