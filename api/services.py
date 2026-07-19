@@ -17,7 +17,10 @@ from api.schemas import (
     PublicPrediction,
     SelectFixtureBody,
 )
-from database.models import Competition, Lineup, Manager, Player, Prediction, SelectedFixture, Team
+from database.models import (
+    Competition, Lineup, Manager, MatchProviderReference, Player, Prediction,
+    SelectedFixture, Team,
+)
 from feature_engineering.pipeline import MatchFeaturePipeline
 from matchup_engine import MatchupPredictionPipeline
 from prediction_model import LightGBMGoalPredictor
@@ -58,7 +61,7 @@ class SelectedFixtureService:
         if body.kickoff_at.tzinfo is None:
             raise ValueError("kickoff_at must include a timezone")
         if body.provider not in {
-            "manual", "canonical", "licensed", "fifa_official", "football_data", "api_football"
+            "manual", "canonical", "licensed", "fifa_official", "football_data", "api_football", "fotmob"
         }:
             raise ValueError("Unsupported fixture provider")
         self.session.execute(update(SelectedFixture).values(is_active=False))
@@ -205,13 +208,14 @@ class DashboardService:
         model_away = [player.model_dump(mode="json") for player in matchups.away_lineup.players]
         provisional = self._canonical_provisional_lineups(fixture)
         predicted_home, predicted_away = provisional or (model_home, model_away)
+        provider, external_id = self._live_source(fixture)
         confirmed = self._canonical_confirmed_lineups(fixture) or self.live_provider.confirmed_lineups(
-            fixture.provider, fixture.external_id
+            provider, external_id
         )
         if confirmed:
             return LineupResponse(
                 mode="confirmed",
-                provider_status="confirmed lineup supplied by licensed provider",
+                provider_status="confirmed lineup supplied by the connected match provider",
                 home=confirmed[0],
                 away=confirmed[1],
                 predicted_home=predicted_home,
@@ -248,6 +252,25 @@ class DashboardService:
     ) -> tuple[list[dict], list[dict]] | None:
         """Use provider possible XIs without mislabelling them as confirmed."""
         return self._canonical_lineup_rows(fixture, starter=None)
+
+    def _live_source(self, fixture: SelectedFixture) -> tuple[str, str]:
+        """Resolve an explicitly selected source or a canonical FotMob mapping.
+
+        Canonical matches retain their local identity for analytics, while a
+        provider reference supplies their optional live data ID.
+        """
+        if fixture.provider in {"api_football", "fotmob"}:
+            return fixture.provider, fixture.external_id
+        if fixture.match_id is not None:
+            reference = self.session.scalar(
+                select(MatchProviderReference).where(
+                    MatchProviderReference.match_id == fixture.match_id,
+                    MatchProviderReference.provider.in_(("fotmob", "fotmob_mcp")),
+                ).order_by(MatchProviderReference.updated_at.desc())
+            )
+            if reference is not None:
+                return "fotmob", reference.external_id
+        return fixture.provider, fixture.external_id
 
     def _canonical_confirmed_lineups(
         self, fixture: SelectedFixture
@@ -289,6 +312,5 @@ class DashboardService:
             return LiveResponse(status="no_fixture", events=[])
         now = datetime.now(timezone.utc)
         status = "scheduled" if now < fixture.kickoff_at else "awaiting_live_provider"
-        return self.live_provider.live(
-            fixture.provider, fixture.external_id, scheduled_status=status
-        )
+        provider, external_id = self._live_source(fixture)
+        return self.live_provider.live(provider, external_id, scheduled_status=status)

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, aliased
 from api.schemas import CompetitionCandidate, FixtureCandidate, LiveResponse
 from api.config import ApiSettings, settings
 from data_collection.api_football import ApiFootballClient, ApiFootballLiveProvider
+from data_collection.fotmob_live import FotMobLiveProvider
 from data_collection.providers.football_data import (
     FootballDataClient,
     KNOCKOUT_STAGES,
@@ -119,17 +120,24 @@ class LiveFixtureProvider:
             ))
             if config.api_football_api_key else None
         )
+        self.fotmob = FotMobLiveProvider()
 
     def confirmed_lineups(
         self, provider: str, external_id: str
     ) -> tuple[list[dict], list[dict]] | None:
         if provider == "api_football" and self.api_football is not None:
             return self.api_football.confirmed_lineups(external_id)
+        if provider == "fotmob":
+            return self.fotmob.confirmed_lineups(external_id)
         return None
 
     def live(self, provider: str, external_id: str, *, scheduled_status: str) -> LiveResponse:
         if provider == "api_football" and self.api_football is not None:
             return LiveResponse.model_validate(
                 self.api_football.live(external_id, scheduled_status=scheduled_status)
+            )
+        if provider == "fotmob":
+            return LiveResponse.model_validate(
+                self.fotmob.live(external_id, scheduled_status=scheduled_status)
             )
         return LiveResponse(status=scheduled_status, events=[])
