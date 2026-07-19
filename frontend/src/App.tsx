@@ -11,6 +11,27 @@ type Matchups = { average_confidence:number; evidence_coverage:number; overall_h
 type Lineups = { mode:string; provider_status:string; home:Player[]; away:Player[]; predicted_home:Player[]; predicted_away:Player[]; actual_home:Player[]; actual_away:Player[]; actual_status:'pending'|'confirmed' }
 type Live = { status:string; minute:number|null; home_score:number|null; away_score:number|null; events:{minute:number|null; extra_minute?:number|null; type:string; player?:string; team?:string; comments?:string}[] }
 
+// Launch-safe display state for the public IONOS static site. The live API
+// replaces this automatically whenever the backend is available.
+const STATIC_FINAL_FIXTURE:Fixture = {
+  id:1, provider:'fifa_official', external_id:'fifa-world-cup-2026-final',
+  home_name:'Spain', away_name:'Argentina', kickoff_at:'2026-07-19T19:00:00Z',
+  match_id:2, home_team_id:1, away_team_id:2, timing_accuracy:'exact', status:'scheduled',
+  competition_id:null, competition_name:'FIFA World Cup 2026 · Final', competition_format:'knockout',
+  home_logo_url:'https://images.fotmob.com/image_resources/logo/teamlogo/6720.png',
+  away_logo_url:'https://images.fotmob.com/image_resources/logo/teamlogo/6706.png',
+  home_manager:'Luis de la Fuente', away_manager:'Lionel Scaloni',
+}
+const STATIC_FINAL_PREDICTION:Prediction = {
+  model_version:'lightgbm_poisson_v1', match_format:'knockout',
+  expected_goals_home:2.01, expected_goals_away:1.09,
+  home_win_probability:0.5864, draw_probability:0.2106, away_win_probability:0.203,
+  home_qualification_probability:0.7127, away_qualification_probability:0.2873,
+  extra_time_probability:0.2106, penalties_probability:0.0951,
+  projected_home_goals:2, projected_away_goals:1, model_inputs:{}, top_feature_importance:{},
+}
+const STATIC_FINAL_LIVE:Live = {status:'scheduled',minute:null,home_score:null,away_score:null,events:[]}
+
 const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
 const assetUrl = (url?:string|null):string|undefined => url ? (url.startsWith('/api/') ? `${API_BASE_URL}${url}` : url) : undefined
 const api = async <T,>(path:string, options?:RequestInit):Promise<T> => {
@@ -129,8 +150,8 @@ function OwnerPanel({open,onClose,onFixture}:{open:boolean;onClose:()=>void;onFi
 export default function App() {
   const [fixture,setFixture]=useState<Fixture|null>(null), [prediction,setPrediction]=useState<Prediction|null>(null), [matchups,setMatchups]=useState<Matchups|null>(null), [lineups,setLineups]=useState<Lineups|null>(null), [live,setLive]=useState<Live|null>(null)
   const [lineupView,setLineupView]=useState<'predicted'|'actual'>('predicted')
-  const [ownerOpen,setOwnerOpen]=useState(false), [loading,setLoading]=useState(true), [error,setError]=useState('')
-  const load=async()=>{setLoading(true);try{const f=await api<Fixture|null>('/api/public/fixture');setFixture(f);if(f){const [p,m,l,v]=await Promise.all([api<Prediction|null>('/api/public/prediction'),api<Matchups|null>('/api/public/matchups'),api<Lineups|null>('/api/public/lineups'),api<Live>('/api/public/live')]);setPrediction(p);setMatchups(m);setLineups(l);setLive(v)}}catch(e){setError((e as Error).message)}finally{setLoading(false)}}
+  const [ownerOpen,setOwnerOpen]=useState(false), [loading,setLoading]=useState(true), [error,setError]=useState(''), [staticLaunch,setStaticLaunch]=useState(false)
+  const load=async()=>{setLoading(true);try{const f=await api<Fixture|null>('/api/public/fixture');setFixture(f);setStaticLaunch(false);if(f){const [p,m,l,v]=await Promise.all([api<Prediction|null>('/api/public/prediction'),api<Matchups|null>('/api/public/matchups'),api<Lineups|null>('/api/public/lineups'),api<Live>('/api/public/live')]);setPrediction(p);setMatchups(m);setLineups(l);setLive(v)}}catch(e){setFixture(STATIC_FINAL_FIXTURE);setPrediction(STATIC_FINAL_PREDICTION);setMatchups(null);setLineups(null);setLive(STATIC_FINAL_LIVE);setStaticLaunch(true);setError('')}finally{setLoading(false)}}
   useEffect(()=>{load()},[])
   useEffect(()=>{const id=setInterval(()=>api<Live>('/api/public/live').then(setLive).catch(()=>{}),15000);return()=>clearInterval(id)},[])
   const countdown=useCountdown(fixture?.kickoff_at)
@@ -145,7 +166,7 @@ export default function App() {
       <div className="score-prediction"><span><b>{prediction.projected_home_goals}</b><small>{fixture.home_name} · {prediction.expected_goals_home.toFixed(2)} xG</small></span><em>PROJECTED 90-MINUTE SCORE</em><span><b>{prediction.projected_away_goals}</b><small>{fixture.away_name} · {prediction.expected_goals_away.toFixed(2)} xG</small></span></div>
       {prediction.match_format==='knockout'&&prediction.home_qualification_probability!==null&&prediction.away_qualification_probability!==null?<div className="knockout-outcome"><div className="knockout-labels"><b>{fixture.home_name} {pct(prediction.home_qualification_probability)}</b><span>TO WIN</span><b>{pct(prediction.away_qualification_probability)} {fixture.away_name}</b></div><div className="knockout-bar"><i style={{width:pct(prediction.home_qualification_probability)}}/><i style={{width:pct(prediction.away_qualification_probability)}}/></div><small>Extra time {pct(prediction.extra_time_probability||0)} · Penalties {pct(prediction.penalties_probability||0)} · 90-min wins: {pct(prediction.home_win_probability)} / {pct(prediction.away_win_probability)}</small></div>:<div className="knockout-outcome"><div className="knockout-labels"><b>{fixture.home_name} {pct(prediction.home_win_probability)}</b><span>90 MINUTES</span><b>{pct(prediction.away_win_probability)} {fixture.away_name}</b></div><div className="league-bar"><i style={{width:pct(prediction.home_win_probability)}}/><i style={{width:pct(prediction.draw_probability)}}/><i style={{width:pct(prediction.away_win_probability)}}/></div><small>Home win {pct(prediction.home_win_probability)} · Draw {pct(prediction.draw_probability)} · Away win {pct(prediction.away_win_probability)}</small></div>}
     </div>}
-    <div className="hero-live"><span className="live-status"><i/>{live?.status.replaceAll('_',' ')||'scheduled'}</span>{live?.events.length?<div className="ticker compact">{live.events.slice(0,3).map((event,i)=><div key={i}><b>{event.minute==null?'LIVE':`${event.minute}${event.extra_minute?`+${event.extra_minute}`:''}'`}</b><span>{event.player?`${event.type} · ${event.player}`:event.comments||event.type}</span></div>)}</div>:<p>Live ticker is waiting for the selected fixture’s connected match feed.</p>}</div>
+    <div className="hero-live"><span className="live-status"><i/>{live?.status.replaceAll('_',' ')||'scheduled'}</span>{live?.events.length?<div className="ticker compact">{live.events.slice(0,3).map((event,i)=><div key={i}><b>{event.minute==null?'LIVE':`${event.minute}${event.extra_minute?`+${event.extra_minute}`:''}'`}</b><span>{event.player?`${event.type} · ${event.player}`:event.comments||event.type}</span></div>)}</div>:<p>{staticLaunch?'World Cup final launch view · live updates require the connected API':'Live ticker is waiting for the selected fixture’s connected match feed.'}</p>}</div>
   </section>
   {lineups&&<section id="lineups" className="section compact-section"><div className="section-head"><div><p className="eyebrow">02 · {lineups.mode.toUpperCase().replace('_',' ')}</p><h2>Lineup intelligence</h2><p>{lineups.provider_status}. Selection is evidence-first; internal role labels never decide who makes the XI.</p></div><div className="lineup-controls"><button className={lineupView==='predicted'?'active':''} onClick={()=>setLineupView('predicted')}>Predicted XI</button><button className={lineupView==='actual'?'active':''} onClick={()=>setLineupView('actual')}>Actual XI · {lineups.actual_status}</button></div></div>{lineupView==='actual'&&lineups.actual_status==='pending'?<div className="actual-pending"><b>Actual lineup pending</b><p>The app checks the approved lineup feed every 30 seconds after kickoff. Until confirmation arrives, the predicted XI stays available.</p></div>:<div className="lineup-lists"><LineupList players={lineupView==='actual'?lineups.actual_home:lineups.predicted_home} teamName={fixture.home_name} matchups={matchups} side="home"/><LineupList players={lineupView==='actual'?lineups.actual_away:lineups.predicted_away} teamName={fixture.away_name} matchups={matchups} side="away"/></div>}</section>}
   {matchups&&<section id="matchups" className="section dark compact-section"><div className="section-head"><div><p className="eyebrow">03 · SPATIAL MATCHUP ENGINE</p><h2>Player-by-player edges</h2><p className="evidence-note">H2H currently covers the {matchups.evidence_scope}. Club meetings are not counted until a club-event provider is connected.</p></div><div className="confidence-ring" style={{'--confidence':`${matchups.average_confidence*360}deg`} as React.CSSProperties}><b>{pct(matchups.average_confidence)}</b><span>AVG CONF.</span></div></div>
